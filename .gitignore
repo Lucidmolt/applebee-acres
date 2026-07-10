@@ -1,0 +1,19 @@
+# local editor / OS
+.claude/
+.DS_Store
+
+# built binaries — regenerated from source by the build scripts
+*.scr
+*.zip
+screensaver/ApplebeeAcres.saver/
+screensaver/build/
+windows-screensaver/bin/
+windows-screensaver/obj/
+windows-screensaver/publish/
+node_modules/
+
+# secrets — never commit
+evolve/auth.env
+*.env
+*.key
+*.pem
