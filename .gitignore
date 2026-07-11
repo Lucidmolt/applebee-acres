@@ -17,3 +17,7 @@ evolve/auth.env
 *.env
 *.key
 *.pem
+
+# evolve loop runtime artifacts (logs + safety backups)
+evolve/*.log
+evolve/*.bak

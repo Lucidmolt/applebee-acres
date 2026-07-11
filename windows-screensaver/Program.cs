@@ -4,6 +4,7 @@ using System.IO;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Microsoft.Win32;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
@@ -78,7 +79,16 @@ namespace ApplebeeAcres
                     if (main == null) main = form; else form.Show();
                 }
             }
-            Application.Run(main);
+            // A monitor sleep/wake, resolution change, or arrangement change under a running
+            // spanning window leaves it in a torn, mis-sized geometry (shrunk into part of one
+            // screen, stretched across the seam to the other). The span + bounds are computed once
+            // above and don't adapt, so instead of trying to re-fit a half-broken layout, exit
+            // cleanly: the OS relaunches the saver on continued idle and recomputes the span from a
+            // clean slate (the known-good path). A brief desktop gap beats a torn farm sitting there.
+            EventHandler onDisplayChange = (s, e) => { try { Application.Exit(); } catch { Environment.Exit(0); } };
+            SystemEvents.DisplaySettingsChanged += onDisplayChange;
+            try { Application.Run(main); }
+            finally { SystemEvents.DisplaySettingsChanged -= onDisplayChange; }
         }
     }
 

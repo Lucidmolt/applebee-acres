@@ -7,11 +7,16 @@ draw-order move unless noted):
 - Impact crater draws after field machines → move crater draw BEFORE the field-cell loop (asteroid gag only).
 - Crop duster (18% summer days) draws before hills/town → move after the hill/town block (or raise flight line above y92).
 - Fireworks (Jul4/NYE) draw before hills → move fw draw after hill/town block.
-- bayOut/svcDrop can spawn inside a docked semi → gate both on haulers.every(h=>h.drop?h.ph>=2:h.ph!==0).
-- VFW patron door-walk (VFWX+1) can end inside slot-2 truck → draw all vfwLot vehicles first, then all walkers.
 - Chickens field-strolling in front of row-0 (y>134) get crops drawn over them → split chicken draw around the r=0 field iteration.
-- VFW sleeper trucks depart eastbound on the same y=126 as inbound emp cars/parts semi → give departures y=127.
-- Row 3 has no machine mutual-exclusion (cruise/sprayer/fire) — sim-mode only, very rare.
+- Row 3: sprayer-vs-fire now gated; cruise-vs-anything still unguarded (sim-mode only, very rare).
+
+## ✅ Vehicle-collision cleanup DONE (2026-07-10, Opus 4.8) — 24 audited findings → ~10 fixes, all shipped
+See project memory "VEHICLE-COLLISION CLEANUP" for the full list. Resolved from the list above:
+svcDrop-into-docked-semi (gated !partsT), VFW door-walk-into-slot-2-truck (walkers now a foreground pass),
+VFW sleeper eastbound same-lane (sleepers depart pre-dawn before the crew sweep). Plus: VFW arrival-order slots
+(no drive-through), bike/truck speed equalized (no overtake-clip), empCar spot spacing, visitor own-side approach,
+dealer dock gates, grain-cart right-pass-only, fire-truck to foreground. Verified via `scratchpad/collision-check.js`
+(a `__A` state-hook harness — reusable) + smoke + browser. Skipped 2 live-mode-impossible 1px sim-only grazes.
 
 ## (historical) IN FLIGHT — clipping audit (now resolved above)
 A 3-agent clipping/collision audit workflow is running (task w3pzm4uvq, run wf_2f243e25-990).

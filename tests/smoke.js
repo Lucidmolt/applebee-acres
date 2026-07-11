@@ -70,6 +70,9 @@ key('2'); step(200);                         // summer: farm & dealership on-shi
 for (const k of ['j',',','.','/',';','\'']) key(k); // family + dealership personality wave
 step(2600);                                  // town round-trip, catch, bike, bay-out, service drop, trade-in
 console.log('family/dealership wave ran');
+for (const k of ['H','P','C']) key(k); step(500);   // hawk, pheasant, cattle herd (demo keys force them)
+key('3'); step(600); key('C'); step(600);           // autumn/stubble cattle grazing + drift + spook paths
+console.log('livestock & hawk ran');
 for (const k of ['a','o','x','v','g','y','i','8']) key(k); // aurora, comet, rocket, meteor shower, crop circle, eclipse, satellite, blood moon
 step(2400);                                  // full eclipse transit + rocket plume fade
 console.log('strange sky ran');

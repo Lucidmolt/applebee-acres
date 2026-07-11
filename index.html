@@ -82,6 +82,10 @@ let weather=0,rainyDay=false,rainS=0,rainE=0,snowCover=0,flashT=0,wind=6;
 let mAng=0,wheelAng=0,chimT=0,puffT=0;
 let fire=null,fireRolled=-1,fireAt=0.55,art=null,duster=null,devil=null,tumbles=[],spray=[],rainbowT=0,prevW=0,cropKind=0;
 let train=null,trainAt=[],sale=null,saleAt=-1,lotStock=2,balloon=null,jet=null,deer=null,deerAt=-1,snowman=null,ufo=null,fw=[],fwNext=0,fwDemo=0,fogT=0,holiday=false,townN=1,townProg=0;
+let rabbit=null,rabbitAt=-1; // a cottontail out on the verge at first light
+let hawk=null,hawkAt=-1;     // a red-tail rides a thermal over the field on clear days (mutually exclusive with aircraft — never shares the sky)
+let pheasant=null,pheasantAt=-1; // a rooster pheasant works the field edge, flushes when the dog/traffic comes near
+let cattle=null,cattleAt=-1; // a small herd grazes the STUBBLE field (autumn/winter) and drifts across; spooks off if a machine works the field
 const EPOCH=new Date(2026,6,6).getTime(); // town founding week
 // the data-center fight: surveyed, protested, and beaten (days since EPOCH)
 const SAGA={survey:[45,75],signs:[70,340],protests:[80,152,290],won:330};
@@ -93,6 +97,7 @@ let netOff=false,netFireOn=false,netFireK=0,netDemo=false,netProbeBusy=false,net
 let dayFrac=0.5,noonTod=0.545,srT=0.27,ssT=0.82,yF=0,YRS=0,bus=null,busDay='';
 let combine=null,sprayer=null,sprayRow=0,unld=null,autoNight=false,sprayerDue=false;
 let vfwLot=[],halfMast=false,memDay=false;
+let vfwNotes=[],vfwParty=0,vfwNoteT=0; // the party at the post: music notes drift out + blue/red/purple light builds into the night, keyed off how many patrons are inside
 let partsT=null,partsAt=-1,haulers=[],haulTimes=[];
 let empCars=[],visitors=[],visPlan=[],plane=null,planeOps=[];
 // family & dealership personality wave
@@ -102,6 +107,7 @@ let yardPlay=null, ball=null;               // picnic + game of catch
 let bikeRide=null;                          // Wade's bike (practice when YRS<2, ride-to-store when YRS>=2)
 let svcDrop=null, svcAt=-1;                 // a farmer drops a tractor at the bay for service
 let bayOut=null, bayAt=-1;                  // mechanic pulls a repaired tractor out onto the apron & back
+let weld=null, weldAt=-1;                   // Manny welds a repair at the bay bench (spark shower + arc glow)
 let dropTimes=[];                           // semi trade-in DELIVERIES (arrive loaded, leave empty)
 let tourCust=null;                          // the customer Hal is escorting around the lot right now
 let cropWalk=false;                         // Earl's midday headland walk down the field
@@ -215,7 +221,7 @@ function nudge(){ // guaranteed low-key liveliness while the saver runs
     train={x:d2>0?-(16+n*10):W+16+n*10,dir:d2,n};});
   if(dl>0.5)opts.push(()=>spawnFlock(Math.random()<0.5?1:-1));
   if(tumbles.length<2)opts.push(()=>tumbles.push({x:-8,y:H-16-Math.random()*46,a:0,r:2.2+Math.random()*1.4}));
-  if(!jet)opts.push(()=>{jet={x:Math.random()<0.5?-10:W+10,dir:0,y:8+Math.random()*22};});
+  if(!jet&&!hawk)opts.push(()=>{jet={x:Math.random()<0.5?-10:W+10,dir:0,y:8+Math.random()*22};});
   if(!satS&&dl<0.3)opts.push(()=>{satS={x:-6,dir:1,y:10+Math.random()*26};});
   if(dl<0.3)opts.push(()=>
     meteors.push({x:20+Math.random()*(W-40),y:4+Math.random()*40,vx:70+Math.random()*60,vy:18+Math.random()*16,life:0.7}));
@@ -289,6 +295,7 @@ function folkPlan(f){
     return{vis:true,y:124,pa:DX+2,pb:DX+42};                        // works the lot — door, showroom, a row of tractors
   }
   if(bayOut)return{vis:false};                                     // Manny's in the bay with the repaired machine
+  if(weld)return{vis:true,y:124,tx:DX+38};                          // hunched at the bench with the torch
   if((tod>0.415&&tod<0.445)||(tod>0.63&&tod<0.66))return{vis:false}; // ducked into the bay to work a repair
   if(tod>0.5&&tod<0.53)return{vis:true,y:124,tx:DX+50,sit:true};    // Manny's lunch on the bay step (west of the load point)
   return{vis:true,y:124,pa:DX+34,pb:DX+56};                         // tech works the service end
@@ -466,6 +473,13 @@ const stars=[]; for(let i=0;i<Math.round(110*LX);i++)stars.push({x:rnd()*W,y:rnd
   c:rnd()<0.12?'255,220,190':(rnd()<0.14?'190,210,255':'226,232,255')});
 const clouds=[]; for(let i=0;i<Math.round(7*LX);i++)clouds.push({x:Math.random()*W,y:8+Math.random()*44,s:0.6+Math.random()*1.1,v:2+Math.random()*3});
 const flies=[]; for(let i=0;i<Math.round(14*LX);i++)flies.push({x:20+Math.random()*(W-40),y:HOR+12+Math.random()*(H-HOR-24),p:Math.random()*TAU,sp:Math.random()});
+const flutters=[]; for(let i=0;i<Math.round(4*LX);i++)flutters.push({x:20+rnd()*(W-40),y:HOR+8+rnd()*22,p:rnd()*TAU,sp:0.6+rnd()*0.8}); // monarchs, out on warm summer days
+// a few head of cattle grazing the far hills, year-round — kept to clear stretches (west of the barn, and the gap east of the lot) so they never sit behind the town/windmill/fair/trees
+const hillCows=[
+  {x:AX(18),lo:AX(5),hi:AX(30),y:HOR-8,d:1,p:rnd()*TAU,herf:false},
+  {x:AX(24),lo:AX(5),hi:AX(30),y:HOR-9,d:-1,p:rnd()*TAU,herf:true},
+  {x:AX(228),lo:AX(214),hi:AX(247),y:HOR-7,d:-1,p:rnd()*TAU,herf:false},
+];
 const chicks=[]; for(let i=0;i<3;i++)chicks.push({x:BARNX+10+i*16,y:123+i*3,tx:BARNX+10+i*16,ty:123+i*3,hy:123+i*3,pk:0,d:1});
 // the cast — three generations of a Kansas dealership, in 6 pixels each
 const folk=[
@@ -479,7 +493,7 @@ const folk=[
 for(const f of folk){f.hold=0;f.wave=false;f.waved=false;} // arms start at rest, not undefined — waves fire from day one
 // Earl, Hal, Manny, Wade, Dot — and Boone the dog, Gus the barn cat
 const dog={x:0,tx:0,y:126,dir:1,vis:false,wasVis:false,nap:false,stepT:0,greetT:0};
-let cat={x:0,tx:0,vis:false,sit:0,dir:1},dogGreet=0,puddleT=0;
+let cat={x:0,tx:0,vis:false,sit:0,dir:1},dogGreet=0,puddleT=0,halMannyT=0,porchT=0;
 let drops=[],flakes=[],smoke=[],leaves=[],birds=[],shoot=null;
 const TREES=[{x:AX(14),big:1},{x:AX(336),big:1},{x:AX(355),big:0},{x:AX(370),big:1}];
 const BLO=[[-4,-10],[2,-14],[4,-8],[-1,-16],[-6,-7],[5,-12]];
@@ -583,13 +597,18 @@ function onNewDay(){
   }
   saleAt=(!SUN&&Math.random()<0.3)?0.36+Math.random()*0.34:-1;
   deerAt=(Math.random()<0.3&&seasonIdx!==3)?(Math.random()<0.5?0.265:0.735):-1;
+  rabbitAt=(Math.random()<0.4&&seasonIdx!==3)?0.25+Math.random()*0.05:-1;   // a rabbit at first light
+  hawkAt=(Math.random()<0.3)?0.4+Math.random()*0.28:-1;                     // a hawk soars a clear midday (spawn gate checks weather + clear sky)
+  pheasantAt=(Math.random()<0.35&&seasonIdx!==3)?0.25+Math.random()*0.06:-1; // a pheasant at first light
+  cattleAt=(((seasonIdx===2&&seasonT>0.45)||seasonIdx===3)&&Math.random()<0.35)?0.34+Math.random()*0.26:-1; // cattle graze the stubble field
+
   trainAt=[Math.random()];
   if(Math.random()<0.6)trainAt.push(Math.random());
   trainAt.sort();
   partsAt=!SUN?0.329+Math.random()*0.01:-1;
   haulTimes=SUN?[]:[0.37+Math.random()*0.05,0.5+Math.random()*0.05];
   if(!SUN&&Math.random()<0.5)haulTimes.push(0.63+Math.random()*0.05);
-  empCars=SUN?[]:[0,1,2].map(i=>({i,x:W+30+i*14,y:126,spot:[DX+4,DX+58,DX+66][i],st:'pre',
+  empCars=SUN?[]:[0,1,2].map(i=>({i,x:W+30+i*14,y:126,spot:[DX+4,DX+30,DX+58][i],st:'pre',   // spots 26px & 28px apart (was DX+58/DX+66, only 8px → 11px-wide cars interpenetrated)
     arriveAt:0.2917+i*0.013+Math.random()*0.008,
     col:['#7a8794','#5a6a8c','#8a5a4a'][i],wx:0,wt:0,walk:0}));
   visitors=[];visPlan=[];
@@ -605,6 +624,7 @@ function onNewDay(){
   cropWalk=seasonIdx!==3&&Math.random()<0.3;
   bayAt=(!SUN&&Math.random()<0.2)?0.4+Math.random()*0.28:-1;                  // Manny airs out a repair
   svcAt=(!SUN&&Math.random()<0.22)?0.4+Math.random()*0.25:-1;                 // a farmer drops one for service
+  weldAt=(!SUN&&Math.random()<0.4)?0.4+Math.random()*0.26:-1;                 // Manny welds a repair at the bench sometime midday-to-dusk
   dropTimes=(!SUN&&Math.random()<0.5)?[0.42+Math.random()*0.2]:[];            // a trade-in gets delivered
   {const SAT=live?liveDate.getDay()===6:Math.floor(day)%7===6;
    famAct='none';famAt=-1;
@@ -622,8 +642,13 @@ function onNewDay(){
   if(partsAt>0&&tod>partsAt+0.03)partsAt=-1;
   if(saleAt>0&&tod>saleAt+0.05)saleAt=-1;
   if(deerAt>0&&tod>deerAt+0.04)deerAt=-1;
+  if(rabbitAt>0&&tod>rabbitAt+0.04)rabbitAt=-1;
+  if(hawkAt>0&&tod>hawkAt+0.06)hawkAt=-1;
+  if(pheasantAt>0&&tod>pheasantAt+0.05)pheasantAt=-1;
+  if(cattleAt>0&&tod>cattleAt+0.05)cattleAt=-1;
   if(bayAt>0&&tod>bayAt+0.05)bayAt=-1;
   if(svcAt>0&&tod>svcAt+0.05)svcAt=-1;
+  if(weldAt>0&&tod>weldAt+0.05)weldAt=-1;
   if(famAt>0&&tod>famAt+0.05)famAt=-1;
   if(k2At>0&&tod>k2At+0.012)k2At=-1;
   if(huntAt>0&&tod>huntAt+0.05)huntAt=-1;
@@ -637,9 +662,14 @@ function onNewDay(){
   if(partsAt>0)partsAt=spread(partsAt);
   if(saleAt>0)saleAt=spread(saleAt);
   if(deerAt>0)deerAt=spread(deerAt);
+  if(rabbitAt>0)rabbitAt=spread(rabbitAt);
+  if(hawkAt>0)hawkAt=spread(hawkAt);
+  if(pheasantAt>0)pheasantAt=spread(pheasantAt);
+  if(cattleAt>0)cattleAt=spread(cattleAt);
   dropTimes=dropTimes.map(spread);
   if(bayAt>0)bayAt=spread(bayAt);
   if(svcAt>0)svcAt=spread(svcAt);
+  if(weldAt>0)weldAt=spread(weldAt);
   if(famAt>0)famAt=spread(famAt);
   if(k2At>0)k2At=spread(k2At);
   if(huntAt>0)huntAt=spread(huntAt);
@@ -653,14 +683,14 @@ function onSeason(s){ // natural transitions in sim mode
 function synthSeason(s){ // rebuild plausible state for an arbitrary calendar moment
   bales=[];baleC=0;drops=[];flakes=[];leaves=[];weather=Math.min(weather,0.2);
   fire=null;duster=null;devil=null;tumbles=[];spray=[];rainbowT=0;
-  train=null;sale=null;balloon=null;jet=null;deer=null;ufo=null;snowman=null;fw=[];fwDemo=0;fogT=0;
+  train=null;sale=null;balloon=null;jet=null;deer=null;rabbit=null;rabbitAt=-1;hawk=null;hawkAt=-1;pheasant=null;pheasantAt=-1;cattle=null;cattleAt=-1;ufo=null;snowman=null;fw=[];fwDemo=0;fogT=0;
   satS=null;rocketS=null;meteors=[];showerT=0;auroraT=0;eclDemo=0;
   asteroid=null;crater=null;debris=[];combine=null;sprayer=null;unld=null;
   vfwLot=[];vfwDaily();
   partsT=null;haulers=[];protest=null;
   empCars=[];visitors=[];visPlan=[];plane=null;planeOps=[];
   barnO=0;bayO=0;famCar=null;famAt=-1;famAct='none';yardPlay=null;ball=null;bikeRide=null;
-  svcDrop=null;svcAt=-1;bayOut=null;bayAt=-1;dropTimes=[];tourCust=null;cropWalk=false;duckHunt=null;huntAt=-1;
+  svcDrop=null;svcAt=-1;bayOut=null;bayAt=-1;weld=null;weldAt=-1;dropTimes=[];tourCust=null;cropWalk=false;duckHunt=null;huntAt=-1;
   tract.task=null;tract.x=PARK.x;tract.y=PARK.y;
   if(s===0){
     if(seasonT<0.2){clearField();phase='toPlant';tract.task={mode:'plant',row:0};tract.x=-16;tract.dir=1;}
@@ -691,14 +721,14 @@ function jumpSeason(k){
   lastDay=Math.floor(day); lastSeason=seasonIdx;
   weather=0;rainyDay=false;flashT=0;drops=[];flakes=[];leaves=[];birds=[];
   fire=null;art=null;duster=null;devil=null;tumbles=[];spray=[];rainbowT=0;
-  train=null;sale=null;balloon=null;jet=null;deer=null;ufo=null;snowman=null;fw=[];fwDemo=0;fogT=0;
+  train=null;sale=null;balloon=null;jet=null;deer=null;rabbit=null;rabbitAt=-1;hawk=null;hawkAt=-1;pheasant=null;pheasantAt=-1;cattle=null;cattleAt=-1;ufo=null;snowman=null;fw=[];fwDemo=0;fogT=0;
   satS=null;rocketS=null;meteors=[];showerT=0;auroraT=0;eclDemo=0;planStrange();
   asteroid=null;crater=null;debris=[];combine=null;sprayer=null;unld=null;
   vfwLot=[];vfwDaily();
   partsT=null;haulers=[];protest=null;
   empCars=[];visitors=[];visPlan=[];plane=null;planeOps=[];
   barnO=0;bayO=0;famCar=null;famAt=-1;famAct='none';yardPlay=null;ball=null;bikeRide=null;
-  svcDrop=null;svcAt=-1;bayOut=null;bayAt=-1;dropTimes=[];tourCust=null;cropWalk=false;duckHunt=null;huntAt=-1;
+  svcDrop=null;svcAt=-1;bayOut=null;bayAt=-1;weld=null;weldAt=-1;dropTimes=[];tourCust=null;cropWalk=false;duckHunt=null;huntAt=-1;
   if(k===0){clearField();bales=[];baleC=0;phase='toPlant';tract.task={mode:'plant',row:0};tract.dir=1;tract.x=-16;}
   if(k===1){clearField('crop',0.5+Math.random()*0.15);phase='growing';tract.task=null;snowCover=0;
     for(const row of cells)for(const c of row)if(c.t==='crop')c.wd=Math.random()<0.06;}
@@ -725,6 +755,9 @@ addEventListener('keydown',e=>{
   else if(e.key==='s'){if(!sale){if(lotStock<1)lotStock=2;sale={ph:0,x:W+40,t:0,col:'#4a6a9c',item:(Math.random()<0.3?'mower':'tractor')};}}
   else if(e.key==='b'){if(!balloon)balloon={x:-16,y:44+Math.random()*24,ph:0};}
   else if(e.key==='e'){if(!deer)deer={x:TREES[1].x-6,tx:TREES[1].x-18,t:0,ph:0};}
+  else if(e.key==='H'){if(!hawk)hawk={cx:W*0.35,cy:42,rx:32,ry:11,a:0,t:0,dur:60,dir:Math.random()<0.5?1:-1,leaving:false};} // demo: hawk
+  else if(e.key==='P'){if(!pheasant){const pd=Math.random()<0.5?1:-1;pheasant={x:pd>0?BARNX+18:DX-26,y:HOR+4,dir:pd,t:0,ph:'walk',pk:0,vy:0,tx:0};pheasant.tx=clamp(pheasant.x+pd*30,BARNX+14,DX-22);}} // demo: pheasant
+  else if(e.key==='C'){if(!cattle){const cd=Math.random()<0.5?1:-1,arr=[];for(let i=0;i<4;i++)arr.push({x:Math.round(W*0.28+i*W*0.13),row:1+(i%3),tail:i*1.7,herf:i===1,calf:i===3});cattle={arr,dir:cd,spook:false};}} // demo: cattle herd, dropped mid-field for an instant look
   else if(e.key==='m'){if(!snowman)snowman={b:1};}
   else if(e.key==='w')fwDemo=18;
   else if(e.key==='u'){if(!ufo)ufo={x:60+Math.random()*(W-120),y:-12,ph:0,t:0};}
@@ -912,10 +945,24 @@ function update(dt){
     else{sale.x+=38*vdt;if(sale.x>W+90)sale=null;}
   }
   // balloon & jet
-  if(!balloon&&dl>0.45&&tod<0.5&&wind<12&&weather<0.2&&vdt>0&&Math.random()<0.000006)balloon={x:-16,y:40+Math.random()*28,ph:Math.random()*9}; // a rare calm-morning treat
+  if(!balloon&&!hawk&&dl>0.45&&tod<0.5&&wind<12&&weather<0.2&&vdt>0&&Math.random()<0.000006)balloon={x:-16,y:40+Math.random()*28,ph:Math.random()*9}; // a rare calm-morning treat (never while the hawk's up)
   if(balloon){balloon.x+=(3+wind*0.35)*vdt;balloon.y+=Math.sin(rt*0.5+balloon.ph)*1.2*vdt;if(balloon.x>W+20)balloon=null;}
-  if(!jet&&dl>0.3&&vdt>0&&Math.random()<0.00018)jet={x:Math.random()<0.5?-10:W+10,dir:0,y:8+Math.random()*22};
+  if(!jet&&!hawk&&dl>0.3&&vdt>0&&Math.random()<0.00018)jet={x:Math.random()<0.5?-10:W+10,dir:0,y:8+Math.random()*22}; // no jet while the hawk owns the sky
   if(jet){if(!jet.dir)jet.dir=jet.x<0?1:-1;jet.x+=jet.dir*46*vdt;if(jet.x<-150||jet.x>W+150)jet=null;}
+  // a hawk rides a thermal over the field — spawns ONLY when the sky is clear of aircraft, and aircraft wait it out, so it never clips a plane/jet/balloon
+  if(hawkAt>0&&tod>hawkAt+0.06)hawkAt=-1;
+  if(!hawk&&hawkAt>0&&tod>hawkAt&&dl>0.5&&weather<0.3&&!plane&&!jet&&!balloon){
+    hawkAt=-1;const hd=Math.random()<0.5?1:-1;
+    hawk={cx:W*(0.28+Math.random()*0.22),cy:38+Math.random()*12,rx:26+Math.random()*12,ry:8+Math.random()*4,a:Math.random()*TAU,t:0,dur:38+Math.random()*44,dir:hd,leaving:false};
+  }
+  if(hawk){
+    hawk.t+=vdt;hawk.a+=hawk.dir*vdt*0.5;                 // slow soaring loops
+    if(hawk.t>hawk.dur)hawk.leaving=true;
+    if(hawk.leaving)hawk.cx+=hawk.dir*20*vdt;             // then peels off across the sky and away
+    hawk.x=hawk.cx+Math.cos(hawk.a)*hawk.rx;
+    hawk.y=hawk.cy+Math.sin(hawk.a)*hawk.ry;
+    if(hawk.cx<-46||hawk.cx>W+46)hawk=null;
+  }
   // deer at dawn/dusk
   if(deerAt>0&&tod>deerAt+0.04)deerAt=-1;
   if(!deer&&deerAt>0&&tod>deerAt&&seasonIdx!==3){deer={x:TREES[1].x-6,tx:TREES[1].x-8-Math.random()*14,t:0,ph:0};deerAt=-1;}
@@ -923,6 +970,59 @@ function update(dt){
     if(deer.ph===0){deer.x-=8*vdt;if(deer.x<=deer.tx){deer.ph=1;deer.t=0;}}
     else if(deer.ph===1){deer.t+=vdt;if(deer.t>18||fire)deer.ph=2;}
     else{deer.x+=14*vdt;if(deer.x>TREES[1].x-2)deer=null;}
+  }
+  // a cottontail ventures onto the verge at first light, then bolts for cover
+  if(rabbitAt>0&&tod>rabbitAt+0.04)rabbitAt=-1;
+  if(!rabbit&&rabbitAt>0&&tod>rabbitAt&&seasonIdx!==3&&weather<0.4){rabbit={x:TREES[0].x+4,tx:HX-10+Math.random()*12,t:0,ph:0,dir:1};rabbitAt=-1;}
+  if(rabbit){
+    if(rabbit.ph===0){const d=Math.sign(rabbit.tx-rabbit.x);rabbit.dir=d||1;rabbit.x+=d*11*vdt;if(Math.abs(rabbit.tx-rabbit.x)<1){rabbit.ph=1;rabbit.t=0;}}
+    else if(rabbit.ph===1){rabbit.t+=vdt;if(rabbit.t>9||dl>0.5||fire||weather>0.4){rabbit.ph=2;rabbit.dir=-1;}} // sun's up / spooked → gone
+    else{rabbit.x-=15*vdt;if(rabbit.x<TREES[0].x-4)rabbit=null;}
+  }
+  // a rooster pheasant works the field-edge verge, then busts up flying if the dog or traffic comes at it
+  if(pheasantAt>0&&tod>pheasantAt+0.05)pheasantAt=-1;
+  if(!pheasant&&pheasantAt>0&&tod>pheasantAt&&seasonIdx!==3&&weather<0.5&&!combine&&!tract.task){
+    pheasantAt=-1;const pd=Math.random()<0.5?1:-1;
+    pheasant={x:pd>0?BARNX+18:DX-26,y:HOR+4,dir:pd,t:0,ph:'walk',pk:0,vy:0};
+    pheasant.tx=clamp(pheasant.x+pd*(20+Math.random()*24),BARNX+14,DX-22);
+  }
+  if(pheasant){
+    const p=pheasant;p.t+=vdt;
+    if(p.ph==='walk'){
+      if(Math.abs(p.tx-p.x)<1.5){p.pk+=vdt;if(p.pk>1.3+Math.random()){p.pk=0;p.tx=clamp(p.x+p.dir*(10+Math.random()*22),BARNX+14,DX-22);}}
+      else{p.x+=Math.sign(p.tx-p.x)*7*vdt;p.dir=Math.sign(p.tx-p.x)||p.dir;p.pk=0;}
+      const spook=(dog.vis&&Math.abs(dog.x-p.x)<16)||dl>0.52||p.t>28||
+        vfwLot.some(v=>(v.st==='in'||v.st==='go')&&Math.abs(v.x-p.x)<18)||
+        empCars.some(ec=>(ec.st==='in'||ec.st==='go')&&Math.abs(ec.x-p.x)<18);
+      if(spook){p.ph='flush';p.vy=-54;p.dir=(dog.vis&&dog.x>p.x)?-1:p.dir;}
+    }else{ p.vy+=58*vdt;p.x+=p.dir*44*vdt;p.y+=p.vy*vdt; if(p.x<-14||p.x>W+14||p.y>H)pheasant=null; }
+  }
+  // a small herd grazes the harvested field and drifts across (~15 min); a machine working the field spooks them off
+  if(cattleAt>0&&tod>cattleAt+0.05)cattleAt=-1;
+  const fieldClear=!combine&&!tract.task&&!fire;
+  const stubbleField=phase==='stubble'||phase==='dormant';
+  if(!cattle&&cattleAt>0&&tod>cattleAt&&stubbleField&&fieldClear&&weather<0.5){
+    cattleAt=-1;const cd=Math.random()<0.5?1:-1,n=3+(Math.random()*3|0),arr=[];
+    for(let i=0;i<n;i++)arr.push({
+      x:(cd>0?-14:W+14)-cd*i*(11+Math.random()*8),
+      row:1+(Math.random()*3|0), tail:Math.random()*TAU,
+      herf:Math.random()<0.35, calf:i>0&&Math.random()<0.22});
+    cattle={arr,dir:cd,spook:false};
+  }
+  if(cattle){
+    if(!fieldClear||!stubbleField)cattle.spook=true;     // a machine's working the field, OR the season turned it off stubble — either way, move off
+    let allGone=true;
+    for(const c of cattle.arr){
+      c.tail+=vdt;
+      c.x+=cattle.dir*(cattle.spook?10:0.5)*vdt;          // a grazing crawl, or a spooked trot
+      if(cattle.dir>0?c.x<W+18:c.x>-18)allGone=false;
+    }
+    if(allGone)cattle=null;
+  }
+  // distant cattle amble the far hills, back and forth within their clear stretch
+  for(const c of hillCows){
+    c.p+=vdt*0.5; c.x+=c.d*(0.4+Math.abs(Math.sin(c.p*0.3))*0.35)*vdt;
+    if(c.x<c.lo){c.x=c.lo;c.d=1;} else if(c.x>c.hi){c.x=c.hi;c.d=-1;}
   }
   // snowman
   if(!snowman&&snowCover>0.55&&dl>0.5&&vdt>0&&Math.random()<0.0004)snowman={b:0.01};
@@ -1015,7 +1115,7 @@ function update(dt){
       } else p.st='in';
     }
     if(p.st==='in'){
-      p.x-=(p.kind==='bike'?36:28)*vdt;
+      p.x-=28*vdt;   // bikes & trucks drive in at the SAME speed so the rank-ordered queue never reshuffles — a nimbler bike used to overtake a truck ahead and clip it
       if(p.x<=sx5){p.x=sx5;p.st='walkin';p.wx=p.x;p.wt=0;}
     }else if(p.st==='walkin'){
       p.wx+=Math.sign(VFWX+1-p.wx)*7*vdt;p.wt+=vdt;
@@ -1027,12 +1127,21 @@ function update(dt){
       p.wx+=Math.sign(sx5-p.wx)*3.4*vdt*(0.6+Math.sin(p.wt*3)*0.4);
       if(Math.abs(sx5-p.wx)<1.5)p.st=p.sleeper?'sleep':'go';
     }else if(p.st==='go'){
-      p.x+=(p.toFarm?-1:1)*(p.kind==='bike'?38:30)*vdt;
+      p.x+=(p.toFarm?-1:1)*30*vdt;   // equal departure speed too, so two vehicles leaving the same way keep their spacing on the pull-out lane
       if(p.x<-30||p.x>W+30)p.st='done';
     }else if(p.st==='sleep'){
       if(tod>p.departAt&&tod<0.66)p.st='go'; // wake & drive off in the morning; the wider upper bound is a failsafe so a page suspended across the morning (backgrounded tab / occlusion) can't strand a sleeper — it still clears before the 4pm regular arrives
     }
   }
+  // the party at the post — notes drift out while it's occupied; the look swells as it fills, then winds down as folks leave
+  {let inside=0; for(const p of vfwLot)if(p.st==='inside')inside++;
+   vfwParty+=(clamp(inside/4,0,1)-vfwParty)*Math.min(1,vdt*0.25);   // eases up as people arrive, down as they go
+   if(inside>0&&vdt>0){
+     vfwNoteT-=vdt;
+     if(vfwNoteT<=0){vfwNoteT=0.7-vfwParty*0.45+Math.random()*0.35;  // notes come faster the fuller it gets
+       vfwNotes.push({x:VFWX-4+Math.random()*16,y:HOR-13,vy:-4-Math.random()*3,sw:Math.random()*TAU,life:2.4+Math.random()*1.4,g:(Math.random()*3|0)});}
+   }
+   vfwNotes=vfwNotes.filter(n=>{n.life-=vdt;n.y+=n.vy*vdt;n.x+=(Math.sin(rt*2.4+n.sw)*3+wind*0.05)*vdt;return n.life>0;});}
   // the crew's cars roll in between 7 and 8
   for(const ec of empCars){
     if(ec.st==='pre'&&tod>ec.arriveAt&&tod<0.9){
@@ -1045,7 +1154,7 @@ function update(dt){
     else if(ec.st==='parked'){
       if(ec.walk===1){ec.wt+=vdt;ec.wx+=Math.sign(DX+58-ec.wx)*7*vdt;
         if(ec.wt>4||Math.abs(DX+58-ec.wx)<2)ec.walk=0;}
-      if(tod>0.727+ec.i*0.009&&tod<0.9){ec.st='out';ec.wx=DX+58;ec.walk=2;}
+      if(tod>0.727+ec.i*0.009&&tod<0.9&&!visitors.some(v2=>v2.spot===DX+74&&v2.st!=='done')){ec.st='out';ec.wx=DX+58;ec.walk=2;} // don't pull out east through a customer still parked at the DX+74 spot
     }
     else if(ec.st==='out'){
       if(ec.walk===2){ec.wx+=Math.sign(ec.x-ec.wx)*7*vdt;
@@ -1062,8 +1171,9 @@ function update(dt){
     visPlan.shift();
     const spots=[DX-4,DX+74].filter(sp=>!actV.some(v2=>v2.spot===sp));
     if(spots.length){
-      const vd=Math.random()<0.5?1:-1;
-      visitors.push({st:'in',dir:vd,x:vd>0?-30:W+30,spot:spots[0],wx:0,tour:Math.random()<0.4,
+      const spot=spots[0];
+      const vd=spot<DX+35?1:-1;   // approach from the visitor's OWN side (west spot from the west, east spot from the east) so two visitors never cross the lot through each other
+      visitors.push({st:'in',dir:vd,x:vd>0?-30:W+30,spot,wx:0,tour:Math.random()<0.4,
         kind:Math.random()<0.6?'truck':'car',
         col:['#4a6a9c','#8a8f98','#7a3a3a','#3d5c46','#7a8794','#5a4a6a'][Math.random()*6|0],
         shirt:['#5a6a8c','#7a3a3a','#3d5c46','#9aa2ae'][Math.random()*4|0],
@@ -1085,13 +1195,13 @@ function update(dt){
       if(v.wt>18||tod>v.leaveAt||tod>0.74||!folk[1].vis){ if(tourCust===v)tourCust=null; v.st='walkout'; }} // no escort, no tour
     else if(v.st==='inside'){if(tod>v.leaveAt){v.st='walkout';v.wx=DX+16;}}
     else if(v.st==='walkout'){v.wx+=Math.sign(v.x-v.wx)*7*vdt;
-      if(Math.abs(v.x-v.wx)<2)v.st='go';}
+      if(Math.abs(v.x-v.wx)<2){v.dir*=-1;v.st='go';}} // drive back out the same side it arrived from
     else if(v.st==='go'){v.x+=v.dir*30*vdt;if(v.x<-40||v.x>W+40)v.st='done';}
   }
   if(tod>0.92){for(const v of visitors)if(v.st!=='done'&&v.st!=='go')v.st='go';tourCust=null;}
   // the 8am parts shipment
   if(partsAt>0&&tod>partsAt+0.03)partsAt=-1;
-  if(partsAt>0&&!partsT&&tod>partsAt){partsT={x:W+40,ph:0,t:0};partsAt=-1;}
+  if(partsAt>0&&!partsT&&tod>partsAt&&!empCars.some(ec=>ec.st==='in')){partsT={x:W+40,ph:0,t:0};partsAt=-1;} // hold the parts semi out of the east corridor until the crew cars have finished driving in
   if(partsT){
     const dock=DX+10;
     if(partsT.ph===0){partsT.x-=34*vdt;if(partsT.x<=dock){partsT.x=dock;partsT.ph=1;partsT.t=0;}}
@@ -1100,7 +1210,7 @@ function update(dt){
   }
   // equipment haulers out of the garage bay
   while(haulTimes.length&&tod>haulTimes[0]+0.05)haulTimes.shift(); // missed the window
-  if(haulTimes.length&&tod>haulTimes[0]&&tod<0.75&&!haulers.some(h=>h.drop?h.ph<2:h.ph===0)){
+  if(haulTimes.length&&tod>haulTimes[0]&&tod<0.75&&!partsT&&!haulers.some(h=>h.drop?h.ph<2:h.ph===0)){ // never share the bay lane with the docked parts semi
     haulTimes.shift();
     const hd=Math.random()<0.5?1:-1;
     haulers.push({x:hd>0?DX+52:DX+24,ph:0,t:0,dir:hd,
@@ -1108,7 +1218,7 @@ function update(dt){
   }
   // trade-in drop-offs: arrive loaded, dock, unload, roll off empty
   while(dropTimes.length&&tod>dropTimes[0]+0.05)dropTimes.shift();
-  if(dropTimes.length&&tod>dropTimes[0]&&tod<0.75&&!haulers.some(h=>h.drop?h.ph<2:h.ph===0)){
+  if(dropTimes.length&&tod>dropTimes[0]&&tod<0.75&&!partsT&&!haulers.some(h=>h.drop?h.ph<2:h.ph===0)){ // drop-off waits until the parts semi has cleared the dock
     dropTimes.shift(); const hd=Math.random()<0.5?1:-1;
     haulers.push({drop:true,x:hd>0?-20:W+20,ph:0,t:0,dir:hd,unloaded:false,
       load:['tractor','combine','sprayer','baler'][Math.random()*4|0]});
@@ -1125,7 +1235,7 @@ function update(dt){
   const barnTgt=(tod>0.27&&tod<0.365)&&dl>0.3&&weather<0.5?1:0;
   barnO+=(barnTgt-barnO)*Math.min(1,vdt*0.8);   // heavy doors take their time
   // the service bay roll-up rises whenever the bay is in use
-  const bayTgt=(haulers.some(h=>h.ph===0&&!h.drop)||bayOut||(svcDrop&&svcDrop.ph==='dock'))?1:0;
+  const bayTgt=(haulers.some(h=>h.ph===0&&!h.drop)||bayOut||(svcDrop&&svcDrop.ph==='dock')||weld)?1:0;
   bayO+=(bayTgt-bayO)*Math.min(1,vdt*0.9);
   // Manny airs out a repaired machine on the apron, then backs it in
   if(bayAt>0&&tod>bayAt+0.05)bayAt=-1;
@@ -1143,7 +1253,7 @@ function update(dt){
   }
   // a farmer drives one in for service, dismounts, and it rolls into the bay
   if(svcAt>0&&tod>svcAt+0.05)svcAt=-1;
-  if(svcAt>0&&!svcDrop&&!bayOut&&tod>svcAt&&dl>0.4){svcAt=-1;const d=Math.random()<0.5?1:-1;svcDrop={ph:'in',x:d>0?-18:W+18,dir:d,y:HOR+8,t:0,wx:0};}
+  if(svcAt>0&&!svcDrop&&!bayOut&&!partsT&&tod>svcAt&&dl>0.4){svcAt=-1;const d=Math.random()<0.5?1:-1;svcDrop={ph:'in',x:d>0?-18:W+18,dir:d,y:HOR+8,t:0,wx:0};} // don't drive a tractor in through the docked parts semi
   if(svcDrop){
     if(svcDrop.ph==='in'){
       svcDrop.x+=svcDrop.dir*30*vdt;
@@ -1157,6 +1267,15 @@ function update(dt){
         if(Math.abs(svcDrop.x-(DX+42))<1.5&&Math.abs(svcDrop.y-(HOR-4))<1.5)svcDrop=null;
       }
     }
+  }
+  // Manny welds a repair at the bay bench (spark shower + arc glow; folkPlan sends him to the bench)
+  if(weldAt>0&&tod>weldAt+0.05)weldAt=-1;
+  if(weldAt>0&&!weld&&tod>weldAt){weldAt=-1;weld={t:0,dur:10+Math.random()*12};}
+  if(weld){
+    weld.t+=vdt;
+    if(weld.t>weld.dur)weld=null;
+    else if(vdt>0&&folk[2].vis&&Math.abs(folk[2].x-(DX+38))<3&&Math.random()<0.32) // a wisp of smoke off the arc, once he's at the bench
+      smoke.push({x:DX+41,y:HOR-3,vx:(Math.random()-0.5)*2.5,vy:-5-Math.random()*4,life:1.2,max:1.2,c:'#82868e'});
   }
   // family afternoon: one rolled activity — town trip, yard catch, or bike ride
   if(famAt>0&&tod>famAt+0.05)famAt=-1;
@@ -1226,7 +1345,7 @@ function update(dt){
   }
   // airport traffic: approach and climb-out behind the post
   while(planeOps.length&&tod>planeOps[0].at+0.04)planeOps.shift();
-  if(!plane&&planeOps.length&&tod>planeOps[0].at&&weather<0.6){
+  if(!plane&&!hawk&&planeOps.length&&tod>planeOps[0].at&&weather<0.6){ // the airport waits out the hawk (they never share the sky; a deferred op fires within seconds in live time)
     const op=planeOps.shift();
     plane=op.land?{land:true,x:-20,y:26+Math.random()*8}
                  :{land:false,x:VFWX+30,y:HOR-12,t:0};
@@ -1374,7 +1493,7 @@ function update(dt){
         const c=row[i];
         if(c.t==='crop'||c.t==='sunflower'||c.t==='flat'){c.t='stubble';c.g=0;c.wd=false;combine.tank++;}
       }
-      if(combine.tank>=46&&!unld){unld={ph:'come',t:0};tract.task={mode:'cart',row:combine.row};}
+      if(combine.tank>=46&&!unld&&combine.dir>0){unld={ph:'come',t:0};tract.task={mode:'cart',row:combine.row};} // summon the grain cart only on a right-moving pass, so the rendezvous is always on the harvested (west) side — the cart never crosses the combine body
       if((combine.dir>0&&combine.x>W+24)||(combine.dir<0&&combine.x<-24)){
         combine.row++;
         if(combine.row>=ROWS){combine.leave=true;phase='baling';}
@@ -1387,7 +1506,7 @@ function update(dt){
     tract.task={mode:'bale',row:0};tract.dir=1;tract.x=-16;
   }
   // See & Spray pass: nozzles fire only where the weeds are
-  if(sprayerDue&&!sprayer&&phase==='growing'&&dl>0.4&&tod>0.32&&tod<0.7){
+  if(sprayerDue&&!sprayer&&!fire&&phase==='growing'&&dl>0.4&&tod>0.32&&tod<0.7){ // don't send the sprayer out while the water truck is working a fire (they'd share row 3)
     sprayer={x:-24,dir:1,row:(sprayRow++)%ROWS,hitT:0};sprayerDue=false;
   }
   if(sprayer){
@@ -1407,8 +1526,8 @@ function update(dt){
 
   // chimney smoke
   const coldOut=(live&&wx)?wx.tempF<55:(seasonIdx===3||(seasonIdx!==1&&dl<0.45));
-  if(coldOut){chimT-=vdt; if(chimT<0){chimT=0.24;
-    smoke.push({x:HX+21.5,y:HOR-22,vx:(Math.random()-0.5)*2,vy:-6-Math.random()*3,life:1.9,max:1.9,c:'#cfd3dd'});}}
+  if(coldOut){chimT-=vdt; if(chimT<0){chimT=0.55+Math.random()*1.6;   // irregular puffs, not a constant plume — a fire draws in wisps, not a steady jet
+    smoke.push({x:HX+21.5,y:HOR-22,vx:(Math.random()-0.5)*2,vy:-6-Math.random()*3,life:1.7,max:1.7,c:'#cfd3dd'});}}
 
   // particle spawns
   const spawn=n=>Math.floor(n)+(Math.random()<n%1?1:0);
@@ -1438,6 +1557,9 @@ function update(dt){
   for(const f of flies){f.p+=vdt*(1+f.sp);
     f.x+=Math.sin(f.p*0.6+f.sp*7)*10*vdt; f.y+=Math.cos(f.p*0.53+f.sp*5)*6*vdt;
     f.x=clamp(f.x,14,W-14); f.y=clamp(f.y,HOR+8,H-8);}
+  for(const b of flutters){b.p+=vdt*(1.4+b.sp);                    // monarchs wander the field, unhurried
+    b.x+=(Math.cos(b.p*0.5)*7+wind*0.06)*vdt; b.y+=Math.sin(b.p*1.1)*6*vdt;
+    b.x=clamp(b.x,12,W-12); b.y=clamp(b.y,HOR+4,H-42);}
   if(dl>0.35&&seasonIdx!==3&&weather<0.45){
     const fm=folk[0];
     chicks.forEach((c,i)=>{
@@ -1522,9 +1644,35 @@ function update(dt){
       for(let s5=0;s5<5;s5++)smoke.push({x:k2.x+1,y:124-Math.random()*2,vx:1.5+wind*0.12+Math.random(),
         vy:-0.6-Math.random()*0.8,life:1.6+Math.random()*0.8,max:2.4,c:'#eef2f2'});
     const earl=folk[0];
+    // Hal and Manny cross paths in the lot and stop to talk shop, face to face
+    halMannyT-=vdt;
+    {const hal=folk[1],mn=folk[2],gap=Math.abs(folk[1].x-folk[2].x);
+     if(hal.vis&&mn.vis&&hal.hold<=0&&mn.hold<=0&&gap<10&&gap>2&&halMannyT<=0&&dl>0.35&&!tourCust){
+       halMannyT=28+Math.random()*22;
+       hal.dir=mn.x>hal.x?1:-1;mn.dir=hal.x>mn.x?1:-1;    // turn to each other
+       hal.hold=2.7;hal.wave=true;                         // Hal's doing the talking, hand moving
+       mn.hold=2.7;mn.wave=false;}}                        // Manny hears him out
+    // Hal points a customer at a machine while they look it over
+    if(tourCust&&tourCust.tdwell>0&&tourCust.st==='tour'){
+      const hal=folk[1];
+      if(hal.vis&&hal.hold<=0&&Math.random()<0.02){hal.hold=1.8;hal.wave=true;hal.dir=tourCust.wx>hal.x?1:-1;}}
+    // Earl & Dot trade a word on the porch — one leans in to say something, the other turns to listen
+    porchT-=vdt;
+    {const dt=folk[4];
+     if(earl.vis&&dt.vis&&earl.sit&&dt.sit&&earl.hold<=0&&dt.hold<=0&&porchT<=0&&Math.abs(earl.x-dt.x)<8){
+       porchT=17+Math.random()*20;
+       const talker=Math.random()<0.5?earl:dt,other=talker===earl?dt:earl;
+       talker.dir=other.x>talker.x?1:-1;other.dir=talker.x>other.x?1:-1;
+       talker.hold=2.3;talker.wave=true;talker.sit=false; // leans up out of the chair with a gesture
+       other.hold=2.3;other.wave=false;}}                 // stays sat, turned toward the talker
     dogGreet-=vdt;
-    if(dog.vis&&earl.vis&&Math.abs(dog.x-earl.x)<6&&dogGreet<=0){
-      dogGreet=75;earl.hold=1.6;earl.wave=false;dog.greetT=1.6;}
+    // Boone greets the folks he knows by name
+    if(dog.vis&&dogGreet<=0){
+      const dt=folk[4];
+      if(earl.vis&&Math.abs(dog.x-earl.x)<6){dogGreet=75;earl.hold=1.6;earl.wave=false;dog.greetT=1.6;}
+      else if(dt.vis&&Math.abs(dog.x-dt.x)<6){dogGreet=70;dog.greetT=1.6;}         // a tail-wag for Dot
+    }
+    if(dog.vis&&folk[3].vis&&Math.abs(dog.x-folk[3].x)<8&&dog.greetT<=0&&Math.random()<0.012)dog.greetT=1.2; // tail going while he trails Wade
     // (winter breath puffs removed — at this scale they read as smoking)
   }
   // Gus works the fence line at dusk
@@ -1672,6 +1820,17 @@ function fenceRun(x1,x2){
   g.globalAlpha=0.8;g.fillRect(x1,HOR-4,x2-x1,1);g.fillRect(x1,HOR-2,x2-x1,1);g.globalAlpha=1;
   if(snowCover>0.3){g.fillStyle=css(SNOW);for(let x=x1;x<=x2;x+=9)g.fillRect(x+(((x*7)%23)<3?1:0),HOR-6,1,1);}
 }
+function perchBirds(x1,x2){ // a few little birds on the top rail (day, no rain, not deep winter)
+  if(dl<0.4||seasonIdx===3||weather>0.5)return;
+  for(let x=x1+7;x<x2-4;x+=34){
+    if(((x*13)%5)>2)continue;                               // only some posts have a bird
+    const by3=HOR-6, hop=(((rt*0.5+x)|0)%9===0)?1:0, look=Math.sin(rt*0.6+x*0.4)>0.6, D=((x*7)%2)?1:-1;
+    g.fillStyle=S('#5a4e42',0.55);
+    g.fillRect(x,by3-hop,1,1);                              // body
+    g.fillRect(x+D,by3-hop-(look?1:0),1,1);                 // head bobs up to look around
+    g.fillStyle=S('#38302a',0.55);g.fillRect(x-D,by3+1-hop,1,1); // tail
+  }
+}
 function drawDealership(){
   const lit=dl<0.45;
   // paved lot
@@ -1770,6 +1929,54 @@ function drawKeatingFire(k){ // the Keating dealership on fire — network-down 
     g.fillStyle=pal[(i+(t*13|0))%3];g.fillRect(fx,roof-6-hh,1.8,hh);
     g.fillStyle='#ffe9a8';g.fillRect(fx+0.4,roof-6-hh*0.42,0.9,hh*0.42);
   }
+}
+function drawWeld(x,y){ // Manny's arc welder at the bay bench — workpiece, glow, spark shower, arc core. rt/hash only, no random.
+  const t=rt, on=((t*22|0)%4)!==0;                              // the arc strikes and stutters
+  g.fillStyle=S('#2b2f37',0.5);g.fillRect(x-3,y-1,6,2);         // the piece on the bench
+  g.fillStyle=S('#3a4048',0.5);g.fillRect(x-3,y-2.5,2,1.5);
+  const ga=(0.08+0.5*(1-dl))*(on?1:0.35);                       // cool arc glow — much stronger after dark
+  const gr=g.createRadialGradient(x,y-1,0.5,x,y-1,9+9*(1-dl));
+  gr.addColorStop(0,`rgba(172,206,255,${ga})`);gr.addColorStop(1,'rgba(150,190,255,0)');
+  g.fillStyle=gr;g.fillRect(x-18,y-17,36,21);
+  if(on){
+    for(let i=0;i<9;i++){                                       // spark shower — a downward fan
+      const a=Math.PI*0.18+i*0.24+Math.sin(t*26+i*1.7)*0.18, len=3+((i*5+(t*13|0))%6);
+      g.strokeStyle=(i&1)?'rgba(255,214,70,0.85)':'rgba(255,150,45,0.75)';
+      g.lineWidth=1;g.beginPath();g.moveTo(x,y-1);g.lineTo(x+Math.cos(a)*len,y-1+Math.sin(a)*len);g.stroke();
+    }
+    g.fillStyle='rgba(212,233,255,0.95)';g.fillRect(x-0.5,y-2,1.6,1.6); // the arc core
+    g.fillStyle='#ffffff';g.fillRect(x,y-1.6,1,1);
+  }
+}
+function drawHawk(){ // a red-tail soaring — a shallow-V silhouette that banks through the turn, an occasional lazy flap
+  const x=hawk.x,y=hawk.y,bank=Math.cos(hawk.a)*0.7,flap=Math.sin(rt*3.5+hawk.a)>0.82?0.9:0;
+  g.strokeStyle=S('#352d24',0.5);g.lineWidth=1;
+  g.beginPath();
+  g.moveTo(x-4,y-1.4-bank-flap);g.lineTo(x-1,y);g.lineTo(x+1,y);g.lineTo(x+4,y-1.4+bank-flap);
+  g.stroke();
+  g.fillStyle=S('#352d24',0.5);g.fillRect(x-0.7,y-0.4,1.6,2.4);   // body
+  g.fillStyle=S('#7a4632',0.5);g.fillRect(x-0.4,y+1.4,1.3,1);     // rufous tail
+}
+function drawCow(c,y,sc){ // a grazing cow — Angus black or a white-faced Hereford; head down to graze, up when moving/spooked
+  const x=c.x,D=cattle.dir,s=(c.calf?0.62:1)*(0.72+sc*0.5);
+  shadow(x,y,5.5*s);
+  const body=c.herf?'#7a4632':'#28241f',leg=c.herf?'#5a3424':'#191512';
+  const graze=!cattle.spook&&Math.sin(c.tail*0.7+x*0.3)>-0.1;
+  g.fillStyle=S(leg,0.6);
+  for(const lx of [-4,-2,1.6,3.6])g.fillRect(x+lx*s,y-2.4*s,1.1*s,2.4*s);   // four legs
+  g.fillStyle=S(body,0.6);
+  g.fillRect(x-5*s,y-6*s,10*s,4*s);                                          // barrel
+  if(graze){
+    g.fillRect(x+D*4*s,y-4.5*s,2.4*s,4*s);                                    // neck angling down
+    g.fillRect(x+D*5.6*s-1.4*s,y-2.2*s,2.8*s,2.2*s);                          // lowered head
+    if(c.herf){g.fillStyle=S('#e8e0d4',0.6);g.fillRect(x+D*5.6*s-1.4*s,y-2.2*s,2.8*s,1.6*s);}
+  }else{
+    g.fillRect(x+D*4.4*s,y-8*s,2.2*s,3*s);                                    // neck up
+    g.fillRect(x+D*5.4*s-1.2*s,y-9.6*s,2.6*s,2.4*s);                          // head up (alert)
+    if(c.herf){g.fillStyle=S('#e8e0d4',0.6);g.fillRect(x+D*5.4*s-1.2*s,y-9.6*s,2.6*s,1.7*s);}
+  }
+  g.fillStyle=S(leg,0.6);
+  g.fillRect(x-D*5*s,y-6*s,0.9*s,4*s+Math.sin(c.tail*3)*1.4*s);               // tail flick
 }
 
 function drawCombine(x,y,s,dir){
@@ -1981,21 +2188,28 @@ function vfwDaily(){ // tonight's roster at the post, and the flag's duty
   const wd2=live?liveDate.getDay():(Math.floor(day)%7);
   const busy=(wd2===5||wd2===6)||(live&&liveDate.getMonth()===10&&liveDate.getDate()===11)||epDay===SAGA.won;
   const n=2+(Math.random()*3|0)+(busy?2:0);
+  const roster=[];
   for(let i=0;i<n&&i<6;i++){
     const bike=Math.random()<0.4;
-    vfwLot.push({
+    roster.push({
       kind:bike?'bike':'truck',
       col:bike?['#2a2d34','#7a2430','#4a4e58'][i%3]:['#4a6a9c','#8a8f98','#7a3a3a','#3d5c46'][i%4],
-      slot:i,st:'pre',x:W+20+i*8,wx:0,wt:0,
+      st:'pre',wx:0,wt:0,
       arriveAt:i===0?0.6667:(Math.random()<0.35?0.6806+Math.random()*0.0798:0.7604+Math.random()*0.042), // regular opens at 4pm sharp; ~35% trickle in 4:20-6:15, the other ~65% SURGE 6:15-6:56 (tight cluster so it reads as a real rush, not an even dribble to 8pm)
       leaveAt:0.8646+Math.random()*0.13,
-      departAt:0.2917+Math.random()*0.052,
+      departAt:0.255+Math.random()*0.03,   // overnight sleepers pull out 6:07-6:50am — safely BEFORE the ~7am crew sweep, so an arriving staff car never drives through a still-parked truck
       sleeper:Math.random()<0.14,
       toFarm:Math.random()<0.3,
       cap:['#8a2f2a','#2f5f2e','#3a3d45','#c9a985','#e8853c','#3a5a8c'][i%6],
       shirt:['#5a6a8c','#7a3a3a','#3d5c46','#9aa2ae','#6b5644','#37424e'][i%6],
     });
   }
+  // Park in ARRIVAL ORDER, filling west→east. Everyone drives in from the far east, so if the earliest
+  // arrival takes the westmost slot and each later one parks the next slot east, an inbound truck always
+  // halts east of every already-parked truck — it never crosses one. (Fixes the old slot-by-index drive-through.)
+  roster.sort((a,b)=>a.arriveAt-b.arriveAt);
+  roster.forEach((p,r)=>{p.slot=r;p.x=W+20+r*13;}); // spawn queued east, 13px apart ≥ 11px slot spacing, so no interpenetration in transit either
+  for(const p of roster)vfwLot.push(p);
 }
 function drawBike(x,y,col,moving,wob){
   shadow(x,y,4);
@@ -2050,6 +2264,24 @@ function drawVFW(){
   if(open&&dl<0.55){circle(x+3.5,HOR-2.5,4,'rgba(255,202,106,0.10)');circle(x+16.5,HOR-2.5,4,'rgba(255,202,106,0.10)');}
   P(x+8,HOR-6,4,6,'#b03030');                    // the red door
   g.fillStyle=S('#e8d4a0',0.4);g.fillRect(x+11,HOR-3,1,1);
+  // the party glow — pulsing blue/red/purple, keyed to how full it is AND how dark it's gotten, so it emerges into the night and fades as folks leave
+  if(vfwParty>0.04){
+    const pc=[[80,140,255],[255,66,96],[185,80,255]];   // blue, red, purple
+    const glowA=vfwParty*clamp((0.62-dl)/0.5,0,1);       // faint in daylight, vivid after dark
+    if(glowA>0.01){
+      g.globalCompositeOperation='lighter';               // additive, so the party colors read as light, not a muddy wash
+      for(let i=0;i<3;i++){
+        const c=pc[i],pulse=0.35+0.65*Math.abs(Math.sin(rt*2.4+i*2.1));
+        circle([x+3.5,x+16.5,x+10][i],HOR-3,4+pulse*3.8,`rgba(${c[0]},${c[1]},${c[2]},${0.5*glowA*pulse})`);
+      }
+      const wc=pc[(rt*1.1|0)%3];                          // a broad colored wash pulsing over the whole front
+      circle(x+10,HOR-6,13,`rgba(${wc[0]},${wc[1]},${wc[2]},${0.12*glowA})`);
+      g.globalCompositeOperation='source-over';
+      const dc=pc[((rt*1.1|0)+1)%3];                       // colored light spilling from the doorway onto the gravel
+      g.fillStyle=`rgba(${dc[0]},${dc[1]},${dc[2]},${0.22*glowA})`;
+      g.fillRect(x+6,HOR-1,8,1);
+    }
+  }
   // flagpole & colors
   const px5=VFWX+13;
   g.fillStyle=S('#c3c9d4',0.5);g.fillRect(px5,HOR-22,1,22);
@@ -2066,6 +2298,15 @@ function drawVFW(){
     }
   }
   if(snowCover>0.25){g.fillStyle=css(SNOW);g.fillRect(x-1,HOR-15,22,1);}
+  // music notes drifting up out of the post while the party's on
+  for(const n of vfwNotes){
+    const a=Math.min(1,n.life/1.4)*0.75,x2=n.x|0,y2=n.y|0;
+    g.fillStyle=`rgba(216,210,232,${a})`;
+    g.fillRect(x2,y2+1,1.4,1.3);                     // note head
+    g.fillRect(x2+1.1,y2-1.6,0.7,3);                 // stem
+    if(n.g===1)g.fillRect(x2+1.1,y2-1.6,1.6,0.7);    // an eighth-note flag on some
+    else if(n.g===2){g.fillRect(x2-1.6,y2+1,1.4,1.3);g.fillRect(x2-0.5,y2-1.6,0.7,3);g.fillRect(x2-0.5,y2-1.6,1.6,0.7);} // a beamed pair on others
+  }
 }
 function workLights(x,y,s,dir,auto){
   if(dl>=0.35)return;
@@ -2443,6 +2684,7 @@ function draw(){
     }
     g.fillStyle='rgba(235,240,248,0.9)';g.fillRect(jet.x|0,jet.y|0,2,1);
   }
+  if(hawk)drawHawk();
   // distant rocket launch
   if(rocketS){
     g.globalCompositeOperation='lighter';
@@ -2492,6 +2734,16 @@ function draw(){
   }
   g.fillStyle=shA(mixA(spal('hillNear'),SNOW,snowCover*0.8),0.65);
   hillPath(HOR-4,5,0.021,0.043,9.0,2.0);
+  // distant cattle grazing the far hills (occluded by the foreground buildings, which draw later = depth)
+  if(dl>0.4&&snowCover<0.6)for(const c of hillCows){
+    const x=c.x|0,y=c.y|0,graze=Math.sin(c.p*1.3)>0.1;
+    g.fillStyle=c.herf?S('#8a5a44',0.6):S('#2e2a28',0.6);
+    g.fillRect(x-1,y-1,3,1.4);                                    // body
+    g.fillRect(x+(c.d>0?2:-1),y-(graze?0.4:1.2),1,graze?1:1.6);   // head (down grazing / up)
+    if(c.herf){g.fillStyle=S('#e8e0d4',0.6);g.fillRect(x+(c.d>0?2:-1),y-(graze?0.4:1.2),1,0.7);}
+    g.fillStyle=c.herf?S('#6a4232',0.6):S('#201d1c',0.6);
+    g.fillRect(x-0.8,y+0.4,0.7,1);g.fillRect(x+1.3,y+0.4,0.7,1);  // legs
+  }
 
   // (hillside crop-art retired — carved letters never sat right against the hill)
 
@@ -2579,6 +2831,18 @@ function draw(){
   P(bx+13,HOR-17,4,3,'#3a1d1d');
   g.globalAlpha=0.5;P(bx+12,HOR-18,6,1,'#d9cfc0');g.globalAlpha=1;                  // loft header
   if(snowCover>0.25){g.fillStyle=css(SNOW);g.fillRect(bx-3,HOR-21,37,1);g.fillRect(bx+4,HOR-29,22,1);}
+  { // weathervane on the ridge — the arrow leans downwind and quivers in a gust
+    const vx=bx+15,vy=HOR-28.5;
+    g.strokeStyle=S('#3a332b',0.5);g.lineWidth=1;
+    g.beginPath();g.moveTo(vx,vy);g.lineTo(vx,vy-4);g.stroke();                 // spindle
+    g.save();g.translate(vx,vy-5);
+    g.rotate(clamp(wind*0.02,0.06,0.6)+Math.sin(rt*0.8)*clamp(wind*0.015,0.03,0.2));
+    g.fillStyle=S('#3a332b',0.5);
+    g.fillRect(-3,-0.4,3.6,0.8);                                                // shaft
+    g.beginPath();g.moveTo(0.6,-1.4);g.lineTo(2.6,0);g.lineTo(0.6,1.4);g.closePath();g.fill(); // arrowhead, downwind
+    g.fillRect(-3,-1.1,0.8,2.2);                                                // tail fletch
+    g.restore();
+  }
   // round bales stacked west of the barn
   circle(BARNX+2,HOR+3,2.3,S('#c2a24e',0.5));circle(BARNX+6,HOR+3,2.3,S('#c2a24e',0.5));
   circle(BARNX+2,HOR+3,1,S('#8a6a3c',0.5));circle(BARNX+6,HOR+3,1,S('#8a6a3c',0.5));
@@ -2714,6 +2978,41 @@ function draw(){
     if(!graze)g.fillRect(dx3+3,hy2-1,1,1);
     g.fillStyle=S('#e8e0d0',0.55);g.fillRect(dx3-4,dy3-4,1,1);
   }
+  if(rabbit){
+    const rx=rabbit.x|0,ry=HOR+2,D=rabbit.dir;
+    const nib=rabbit.ph===1&&Math.sin(rt*3.5)>0;               // dips to nibble
+    const hop=rabbit.ph!==1?Math.abs(Math.sin(rabbit.x*1.4))*1.6:0; // little hops on the move
+    shadow(rx+0.5,ry,1.6);
+    g.fillStyle=S('#9a8a78',0.55);
+    g.fillRect(rx-1,ry-2-hop,3,2);                             // body
+    g.fillRect(rx+D*1.6,ry-2-hop+(nib?1:0),1,1);              // head
+    g.fillRect(rx+D*1.6,ry-4-hop+(nib?1:0),1,2-(nib?1:0));    // ears (fold when nibbling)
+    g.fillStyle=S('#e8e2d4',0.6);g.fillRect(rx-D*1.6,ry-1-hop,1,1); // cotton tail
+  }
+  if(pheasant){
+    const p=pheasant,x=p.x|0,y=p.y|0,D=p.dir;
+    if(p.ph==='flush'){                                            // busted up, wings hammering, tail streaming
+      const up=Math.sin(rt*24)>0;
+      g.fillStyle=S('#7a4a28',0.6);g.fillRect(x-D*4,y-0.5,4,1.2);  // long tail streaming behind
+      g.fillStyle=S('#9a6a3c',0.6);g.fillRect(x-1,y-1,3,2);        // body
+      g.fillStyle=S('#8a5a34',0.6);
+      g.fillRect(x-1.5,y-(up?3:0),1.6,up?3:1);g.fillRect(x+1,y-(up?3:0),1.6,up?3:1); // wingbeats
+      g.fillStyle=S('#243038',0.6);g.fillRect(x+D*1.6,y-2,1.3,1.3);// head
+      g.fillStyle=S('#c03030',0.5);g.fillRect(x+D*1.6,y-2.3,1.3,0.6);
+    }else{                                                         // strutting the edge, pecking
+      shadow(x+0.5,y,2.2);
+      const peck=p.pk>0&&Math.abs(p.tx-p.x)<1.5&&Math.sin(rt*4)>0;
+      g.fillStyle=S('#7a4a28',0.6);g.fillRect(x-D*3.4,y-2.6,3.6,1.1);// long sweeping tail
+      g.fillStyle=S('#9a6a3c',0.6);g.fillRect(x-1,y-3,3,2);        // coppery body
+      g.fillStyle=S('#b07a44',0.55);g.fillRect(x-D*0.5,y-3.4,1.6,0.8);// back sheen
+      const hy=peck?y-2:y-5;
+      g.fillStyle=S('#245a3a',0.6);g.fillRect(x+D*1.3,hy,1,peck?2:3);// green neck
+      g.fillStyle=S('#243038',0.6);g.fillRect(x+D*1.7,hy-0.6,1.4,1.4);// dark head
+      g.fillStyle=S('#c03030',0.5);g.fillRect(x+D*1.7,hy-0.9,1.4,0.7);// red face
+      g.fillStyle=S('#e8e4dc',0.6);g.fillRect(x+D*1.1,hy+0.7,0.7,0.5);// white ring
+      g.fillStyle=S('#3a3228',0.6);g.fillRect(x-1,y-1,0.7,1);g.fillRect(x+1,y-1,0.7,1);// legs
+    }
+  }
   if(sale){
     drawPickup(sale.x,HOR+9,0.9,sale.ph===2?1:-1,sale.col,sale.ph===2&&!!sale.sold,sale.item);
     if(sale.ph===1){
@@ -2731,6 +3030,9 @@ function draw(){
   fenceRun(HX+32,DX-12);
   if(WMX-10>LOTX2+6)fenceRun(LOTX2+6,WMX-10);
   if(VFWX-20>WMX+8)fenceRun(WMX+8,VFWX-20);
+  perchBirds(HX+32,DX-12);
+  if(WMX-10>LOTX2+6)perchBirds(LOTX2+6,WMX-10);
+  if(VFWX-20>WMX+8)perchBirds(WMX+8,VFWX-20);
 
   // the farmhouse lawn — kept trim; a few short blades for texture
   if(snowCover<0.6){
@@ -2767,6 +3069,7 @@ function draw(){
   // the people and the dog
   for(const f of folk)drawFolk(f);
   drawDog();
+  if(weld&&folk[2].vis&&Math.abs(folk[2].x-(DX+38))<3)drawWeld(DX+41,HOR-1); // Manny's arc, once he's hunched at the bench
   // Wade's bike, the thrown ball, and the family wagon — all in front of the folk
   if(bikeRide)drawBike(bikeRide.x,126,'#c94a3c',true,bikeRide.mode==='practice'?1:0); // rider always shown — Wade straddles his bike to look at the lot
   if(yardPlay&&ball){
@@ -2869,6 +3172,13 @@ function draw(){
     drawTractorAt(svcDrop.x,svcDrop.y,0.5,svcDrop.dir,svcDrop.ph==='in'||mvIn,dl<0.45,svcDrop.ph==='in'?'red':mvIn); // Manny takes it in
     g.globalAlpha=1;
     if(svcDrop.ph==='park'||svcDrop.ph==='dock')drawWalker(svcDrop.wx,124,'#5a6a8c','#8a2f2a');
+    if(svcDrop.ph==='park'){                              // Manny checks it in — a work order / part passes hands
+      const mn=folk[2];
+      if(mn.vis&&Math.abs(mn.x-svcDrop.wx)<22){
+        const ph3=(rt*0.8)%1, hx7=lerp(mn.x+1,svcDrop.wx-1,ph3<0.5?ph3*2:2-ph3*2);
+        g.fillStyle=S('#c9b47a',0.6);g.fillRect(hx7|0,122,1,2);
+      }
+    }
   }
   { // lot inventory (minus whatever sold today), this year's model stripe — drawn over the walkers so folk pass BEHIND the display units
     const MY=['#4f9448','#e8c83c','#9ab4d8'][((year%3)+3)%3];
@@ -2877,28 +3187,41 @@ function draw(){
     if(lotStock>1){drawTractorAt(DX+29,HOR+9,0.48,-1,false,false);
       g.fillStyle=S(MY,0.5);g.fillRect(DX+30,HOR+4,3,1);}
   }
-  // the crowd at the post
+  // the crowd at the post — drawn in depth order so nothing clips:
+  //   parked row on a subtle per-slot y-stagger (back-to-front); trucks pulling OUT ('go') ride a foreground
+  //   lane so they layer in front of the row; every walker in a final pass on the near side, in front of all bodies.
+  const vfwY=p=>126+p.slot*0.22;                                   // subtle per-slot depth — westmost sits a hair back
+  const vfwBodies=[];
   for(const p of vfwLot){
     if(p.st==='pre'||p.st==='done')continue;
-    const y=126;
+    vfwBodies.push({p,y:p.st==='go'?127.5:vfwY(p)});              // a departing truck pulls out onto the road, in front of the parked row
+  }
+  vfwBodies.sort((a,b)=>a.y-b.y);                                  // back-to-front
+  for(const {p,y} of vfwBodies){
     if(p.kind==='bike')drawBike(p.x,y,p.col,p.st==='in'||p.st==='go');
     else drawTruckSm(p.x,y,p.col,(p.st==='in'||(p.st==='go'&&p.toFarm))?-1:1);
-    if(p.st==='walkin'||p.st==='stumble'){
-      const wob=p.st==='stumble'?Math.sin(p.wt*5)*1.4:0;
-      const wx2=p.wx+wob;
-      const trip=p.st==='stumble'&&Math.sin(p.wt*2.3)>0.7?1:0;
-      shadow(wx2+0.5,y,2);
-      g.fillStyle=S('#3a4252',0.55);
-      g.fillRect(wx2-1,y-3+trip,1,3-trip);g.fillRect(wx2+1,y-3,1,3);
-      g.fillStyle=S(p.shirt||'#5a6a8c',0.58);g.fillRect(wx2-1,y-6+trip,3,3);
-      g.fillStyle=S('#c9a985',0.52);g.fillRect(wx2-0.5,y-8+trip,2,2);
-      g.fillStyle=S(p.cap,0.55);g.fillRect(wx2-0.6,y-8.8+trip,2.2,1);
-    }
-    if(p.st==='sleep'&&dl<0.45){
-      const zp=(rt*0.4+p.slot*0.37)%1;
-      if(zp<0.7){g.fillStyle=`rgba(220,228,240,${0.5*(1-zp)})`;
-        g.fillRect((p.x+2)|0,(y-9-zp*4)|0,1,1);g.fillRect((p.x+3)|0,(y-10-zp*4)|0,1,1);}
-    }
+  }
+  for(const p of vfwLot){                                          // walkers last, on the near side (in front of every parked truck)
+    if(p.st!=='walkin'&&p.st!=='stumble')continue;
+    const wy=127.8;
+    const wob=p.st==='stumble'?Math.sin(p.wt*5)*1.4:0;
+    const wx2=p.wx+wob;
+    const trip=p.st==='stumble'&&Math.sin(p.wt*2.3)>0.7?1:0;
+    shadow(wx2+0.5,wy,2);
+    g.fillStyle=S('#3a4252',0.55);
+    g.fillRect(wx2-1,wy-3+trip,1,3-trip);g.fillRect(wx2+1,wy-3,1,3);
+    g.fillStyle=S(p.shirt||'#5a6a8c',0.58);g.fillRect(wx2-1,wy-6+trip,3,3);
+    g.fillStyle=S('#c9a985',0.52);g.fillRect(wx2-0.5,wy-8+trip,2,2);
+    g.fillStyle=S(p.cap,0.55);g.fillRect(wx2-0.6,wy-8.8+trip,2.2,1);
+    // a raised hand when another patron is right there — old boys greeting each other at the post
+    if(vfwLot.some(q=>q!==p&&(q.st==='walkin'||q.st==='stumble')&&Math.abs(q.wx-p.wx)<15)){
+      g.fillStyle=S('#c9a985',0.52);g.fillRect(wx2+1.6,wy-7.4+trip-((rt*5|0)%2)*0.5,0.9,2.2);}
+  }
+  for(const p of vfwLot){                                          // z's over the sleepers
+    if(p.st!=='sleep'||dl>=0.45)continue;
+    const y=vfwY(p),zp=(rt*0.4+p.slot*0.37)%1;
+    if(zp<0.7){g.fillStyle=`rgba(220,228,240,${0.5*(1-zp)})`;
+      g.fillRect((p.x+2)|0,(y-9-zp*4)|0,1,1);g.fillRect((p.x+3)|0,(y-10-zp*4)|0,1,1);}
   }
 
   // parked tractor (yard)
@@ -2924,6 +3247,7 @@ function draw(){
       g.beginPath();g.arc(b.x,byy,2.6*sc,0,TAU);g.stroke();
       if(snowCover>0.3&&!b.ry){g.fillStyle=css(SNOW);g.fillRect(b.x-2,y-5.2*sc-1,4,1);}
     }
+    if(cattle)for(const c of cattle.arr)if(c.row===r)drawCow(c,y,sc); // herd layered by row; a working machine (below) draws over them, but they spook off before one arrives
     if(tract.task&&tract.task.row===r){
       const tm=tract.task.mode;
       if(tm==='plant')drawPlanter(tract.x,tract.y,tract.s,tract.dir);
@@ -2988,7 +3312,7 @@ function draw(){
       }
     }
   }
-  if(fire&&fire.phase>=1)drawTruck(fire.truckX,ROWY[3]+1,1.05,fire.phase===2?-1:1);
+  if(fire&&fire.phase>=1)drawTruck(fire.truckX,ROWY[3]+6,1.05,fire.phase===2?-1:1); // ride the bare foreground below the last crop row, so it reads as driving in FRONT of the field, not on it
   if(spray.length){g.fillStyle='rgba(138,192,238,0.8)';
     for(const p of spray)g.fillRect(p.x|0,p.y|0,1,1);}
   if(devil){
@@ -3036,6 +3360,15 @@ function draw(){
   for(const p of smoke){const a=(p.life/p.max)*0.35;
     circle(p.x,p.y,1+(1-p.life/p.max)*2,`rgba(${C(p.c)[0]},${C(p.c)[1]},${C(p.c)[2]},${a})`);}
 
+  // monarchs drifting over the field on warm, clear summer days
+  if(seasonIdx===1&&dl>0.62&&weather<0.3&&snowCover<0.2){
+    for(const b of flutters){
+      const up=Math.sin(b.p*5)>0, bx3=b.x|0, by3=b.y|0;
+      g.fillStyle=S('#e07b2a',0.55);
+      g.fillRect(bx3-1,by3-(up?1:0),1,1);g.fillRect(bx3+1,by3-(up?1:0),1,1); // wings beating
+      g.fillStyle=S('#2a1e14',0.5);g.fillRect(bx3,by3,1,1);                   // body
+    }
+  }
   // fireflies
   const fActive=(seasonIdx===1||(seasonIdx===2&&seasonT<0.35))&&dl<0.3;
   if(fActive){g.globalCompositeOperation='lighter';
