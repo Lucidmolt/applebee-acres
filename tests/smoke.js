@@ -73,6 +73,8 @@ console.log('family/dealership wave ran');
 for (const k of ['H','P','C']) key(k); step(500);   // hawk, pheasant, cattle herd (demo keys force them)
 key('3'); step(600); key('C'); step(600);           // autumn/stubble cattle grazing + drift + spook paths
 console.log('livestock & hawk ran');
+key('U'); step(1600);                               // mid-day cattle abduction: saucer in, beam, cow gone, zip out
+console.log('cow abduction ran');
 for (const k of ['a','o','x','v','g','y','i','8']) key(k); // aurora, comet, rocket, meteor shower, crop circle, eclipse, satellite, blood moon
 step(2400);                                  // full eclipse transit + rocket plume fade
 console.log('strange sky ran');

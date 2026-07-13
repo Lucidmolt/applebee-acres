@@ -87,6 +87,7 @@ let rabbit=null,rabbitAt=-1; // a cottontail out on the verge at first light
 let hawk=null,hawkAt=-1;     // a red-tail rides a thermal over the field on clear days (mutually exclusive with aircraft — never shares the sky)
 let pheasant=null,pheasantAt=-1; // a rooster pheasant works the field edge, flushes when the dog/traffic comes near
 let cattle=null,cattleAt=-1; // a small herd grazes the STUBBLE field (autumn/winter) and drifts across; spooks off if a machine works the field
+let cowUfo=null,cowUfoAt=-1; // the OTHER ufo: rare mid-day saucer over the far hills lifts a hill cow — she's returned to her patch a few minutes later, none the wiser
 const EPOCH=new Date(2026,6,6).getTime(); // town founding week
 // the data-center fight: surveyed, protested, and beaten (days since EPOCH)
 const SAGA={survey:[45,75],signs:[70,340],protests:[80,152,290],won:330};
@@ -217,6 +218,12 @@ function drawHunter(D){
   if(!D.auto)for(let i=0;i<5;i++){g.fillStyle=i<D.shots?'#e8b13c':S('#4a4030',0.6);g.fillRect(x-4+i*2,y-12,1,2.2); // shell pips only in the interactive game — the ambient one stays clean
     if(i<D.shots){g.fillStyle='#c04a2a';g.fillRect(x-4+i*2,y-12,1,0.7);}}
   for(let i=0;i<Math.min(D.bag,5);i++){g.fillStyle=S('#33333c',0.6);g.fillRect(x-3+i*2,y-0.5,1.6,1);}
+}
+function startCowUfo(){ // the mid-day abduction: pick a cow that's out grazing and send the saucer for her
+  const avail=hillCows.filter(hc=>!hc.gone&&!hc.abd);
+  if(!avail.length||dl<=0.4||snowCover>=0.6)return;      // cows have to be visible for the gag to land
+  const c=avail[(Math.random()*avail.length)|0];
+  cowUfo={cow:c,ph:'in',t:0,x:c.x<W/2?-16:W+16,y:HOR-34,vx:0};
 }
 function nudge(){ // guaranteed low-key liveliness while the saver runs
   const opts=[];
@@ -607,6 +614,7 @@ function onNewDay(){
   hawkAt=(Math.random()<0.3)?0.4+Math.random()*0.28:-1;                     // a hawk soars a clear midday (spawn gate checks weather + clear sky)
   pheasantAt=(Math.random()<0.35&&seasonIdx!==3)?0.25+Math.random()*0.06:-1; // a pheasant at first light
   cattleAt=(((seasonIdx===2&&seasonT>0.45)||seasonIdx===3)&&Math.random()<0.35)?0.34+Math.random()*0.26:-1; // cattle graze the stubble field
+  cowUfoAt=(Math.random()<0.02)?0.42+Math.random()*0.16:-1; // ~2% of days (asteroid-rare): a mid-day cattle abduction over the hills, 10am-2pm window
 
   trainAt=[Math.random()];
   if(Math.random()<0.6)trainAt.push(Math.random());
@@ -625,7 +633,8 @@ function onNewDay(){
   {const np=4+(Math.random()*3|0);
    for(let i=0;i<np;i++)planeOps.push({at:0.27+Math.random()*0.6,land:Math.random()<0.5});
    planeOps.sort((a2,b2)=>a2.at-b2.at);}
-  famCar=null;yardPlay=null;ball=null;bikeRide=null;svcDrop=null;bayOut=null;tourCust=null;duckHunt=null; // yesterday's scenes never leak into today
+  famCar=null;yardPlay=null;ball=null;bikeRide=null;svcDrop=null;bayOut=null;tourCust=null;duckHunt=null;cowUfo=null; // yesterday's scenes never leak into today
+  for(const hc of hillCows){hc.gone=false;hc.abd=false;hc.abdY=0;} // and no cow stays beamed-up across a day boundary
   // family & dealership personality rolls
   cropWalk=seasonIdx!==3&&Math.random()<0.3;
   bayAt=(!SUN&&Math.random()<0.2)?0.4+Math.random()*0.28:-1;                  // Manny airs out a repair
@@ -652,6 +661,7 @@ function onNewDay(){
   if(hawkAt>0&&tod>hawkAt+0.06)hawkAt=-1;
   if(pheasantAt>0&&tod>pheasantAt+0.05)pheasantAt=-1;
   if(cattleAt>0&&tod>cattleAt+0.05)cattleAt=-1;
+  if(cowUfoAt>0&&tod>cowUfoAt+0.06)cowUfoAt=-1;
   if(bayAt>0&&tod>bayAt+0.05)bayAt=-1;
   if(svcAt>0&&tod>svcAt+0.05)svcAt=-1;
   if(weldAt>0&&tod>weldAt+0.05)weldAt=-1;
@@ -672,6 +682,7 @@ function onNewDay(){
   if(hawkAt>0)hawkAt=spread(hawkAt);
   if(pheasantAt>0)pheasantAt=spread(pheasantAt);
   if(cattleAt>0)cattleAt=spread(cattleAt);
+  if(cowUfoAt>0)cowUfoAt=spread(cowUfoAt);
   dropTimes=dropTimes.map(spread);
   if(bayAt>0)bayAt=spread(bayAt);
   if(svcAt>0)svcAt=spread(svcAt);
@@ -689,7 +700,7 @@ function onSeason(s){ // natural transitions in sim mode
 function synthSeason(s){ // rebuild plausible state for an arbitrary calendar moment
   bales=[];baleC=0;drops=[];flakes=[];leaves=[];weather=Math.min(weather,0.2);
   fire=null;duster=null;devil=null;tumbles=[];spray=[];rainbowT=0;
-  train=null;sale=null;balloon=null;jet=null;deer=null;rabbit=null;rabbitAt=-1;hawk=null;hawkAt=-1;pheasant=null;pheasantAt=-1;cattle=null;cattleAt=-1;ufo=null;snowman=null;fw=[];fwDemo=0;fogT=0;
+  train=null;sale=null;balloon=null;jet=null;deer=null;rabbit=null;rabbitAt=-1;hawk=null;hawkAt=-1;pheasant=null;pheasantAt=-1;cattle=null;cattleAt=-1;ufo=null;cowUfo=null;cowUfoAt=-1;hillCows.forEach(hc=>{hc.gone=false;hc.abd=false;hc.abdY=0;});snowman=null;fw=[];fwDemo=0;fogT=0;
   satS=null;rocketS=null;meteors=[];showerT=0;auroraT=0;eclDemo=0;
   asteroid=null;crater=null;debris=[];combine=null;sprayer=null;unld=null;
   vfwLot=[];vfwDaily();
@@ -727,7 +738,7 @@ function jumpSeason(k){
   lastDay=Math.floor(day); lastSeason=seasonIdx;
   weather=0;rainyDay=false;flashT=0;drops=[];flakes=[];leaves=[];birds=[];
   fire=null;art=null;duster=null;devil=null;tumbles=[];spray=[];rainbowT=0;
-  train=null;sale=null;balloon=null;jet=null;deer=null;rabbit=null;rabbitAt=-1;hawk=null;hawkAt=-1;pheasant=null;pheasantAt=-1;cattle=null;cattleAt=-1;ufo=null;snowman=null;fw=[];fwDemo=0;fogT=0;
+  train=null;sale=null;balloon=null;jet=null;deer=null;rabbit=null;rabbitAt=-1;hawk=null;hawkAt=-1;pheasant=null;pheasantAt=-1;cattle=null;cattleAt=-1;ufo=null;cowUfo=null;cowUfoAt=-1;hillCows.forEach(hc=>{hc.gone=false;hc.abd=false;hc.abdY=0;});snowman=null;fw=[];fwDemo=0;fogT=0;
   satS=null;rocketS=null;meteors=[];showerT=0;auroraT=0;eclDemo=0;planStrange();
   asteroid=null;crater=null;debris=[];combine=null;sprayer=null;unld=null;
   vfwLot=[];vfwDaily();
@@ -764,6 +775,7 @@ addEventListener('keydown',e=>{
   else if(e.key==='H'){if(!hawk)hawk={cx:W*0.35,cy:42,rx:32,ry:11,a:0,t:0,dur:60,dir:Math.random()<0.5?1:-1,leaving:false};} // demo: hawk
   else if(e.key==='P'){if(!pheasant){const pd=Math.random()<0.5?1:-1;pheasant={x:pd>0?BARNX+18:DX-26,y:HOR+4,dir:pd,t:0,ph:'walk',pk:0,vy:0,tx:0};pheasant.tx=clamp(pheasant.x+pd*30,BARNX+14,DX-22);}} // demo: pheasant
   else if(e.key==='C'){if(!cattle){const cd=Math.random()<0.5?1:-1,arr=[];for(let i=0;i<4;i++)arr.push({x:Math.round(W*0.28+i*W*0.13),row:1+(i%3),tail:i*1.7,herf:i===1,calf:i===3});cattle={arr,dir:cd,spook:false};}} // demo: cattle herd, dropped mid-field for an instant look
+  else if(e.key==='U'){if(!cowUfo)startCowUfo();} // demo: the mid-day cattle abduction (needs a visible hill cow, so daytime only)
   else if(e.key==='m'){if(!snowman)snowman={b:1};}
   else if(e.key==='w')fwDemo=18;
   else if(e.key==='u'){if(!ufo)ufo={x:60+Math.random()*(W-120),y:-12,ph:0,t:0};}
@@ -1005,6 +1017,7 @@ function update(dt){
   }
   // a small herd grazes the harvested field and drifts across (~15 min); a machine working the field spooks them off
   if(cattleAt>0&&tod>cattleAt+0.05)cattleAt=-1;
+  if(cowUfoAt>0&&tod>cowUfoAt+0.06)cowUfoAt=-1;
   const fieldClear=!combine&&!tract.task&&!fire;
   const stubbleField=phase==='stubble'||phase==='dormant';
   if(!cattle&&cattleAt>0&&tod>cattleAt&&stubbleField&&fieldClear&&weather<0.5){
@@ -1037,10 +1050,24 @@ function update(dt){
   // distant cattle: park and graze most of the time, then ease into a short amble —
   // constant sliding at 3px scale read as "randomly moving pixels", dwell-then-walk reads as cattle
   for(const c of hillCows){
+    if(c.gone){c.backT-=vdt;if(c.backT<=0){c.gone=false;c.abdY=0;}continue;} // set back down at her patch a few minutes later, none the wiser
+    if(c.abd)continue;                                    // held in the beam — the saucer does the moving now
     c.p+=vdt*0.5;
     c.mv=Math.max(0,Math.sin(c.p*0.16)-0.62)/0.38;        // 0 for ~55s (grazing), eases 0->1->0 over a ~22s amble
     c.x+=c.d*c.mv*1.1*vdt;
     if(c.x<c.lo){c.x=c.lo;c.d=1;} else if(c.x>c.hi){c.x=c.hi;c.d=-1;}
+  }
+  // the OTHER ufo: a rare mid-day saucer works the hills — slides in, beams a cow up, and is gone
+  if(!cowUfo&&cowUfoAt>0&&tod>cowUfoAt&&tod<cowUfoAt+0.06&&dl>0.5&&weather<0.55&&snowCover<0.6&&!plane&&!jet&&!balloon&&!hawk){cowUfoAt=-1;startCowUfo();}
+  if(cowUfo){
+    const u=cowUfo,c5=u.cow;
+    if(u.ph==='in'){const d6=Math.sign(c5.x-u.x)||1;u.x+=d6*46*vdt;
+      if(Math.abs(u.x-c5.x)<1.4){u.x=c5.x;u.ph='beam';u.t=0;c5.abd=true;}}
+    else if(u.ph==='beam'){u.t+=vdt;
+      c5.abdY=Math.min(26,(c5.abdY||0)+(u.t<0.9?2.5:9)*vdt);          // the beam takes hold, then lifts her
+      if(c5.abdY>=26){c5.gone=true;c5.abd=false;c5.abdY=0;c5.backT=120+Math.random()*180;u.ph='out';u.t=0;u.vx=(u.x<W/2?-1:1)*30;}}
+    else{u.t+=vdt;u.vx*=1+2.4*vdt;u.x+=u.vx*vdt;u.y-=10*vdt;          // zips away climbing
+      if(u.x<-30||u.x>W+30||u.t>6)cowUfo=null;}
   }
   // snowman
   if(!snowman&&snowCover>0.55&&dl>0.5&&vdt>0&&Math.random()<0.0004)snowman={b:0.01};
@@ -2777,7 +2804,10 @@ function draw(){
     // the old 3px sprite was below the legibility floor — read as a worm lifting a nub (Austin, 2026-07-13).
     // minimum legible cow: longer barrel, a leg GAP (the quadruped signature), and a head that drops
     // BELOW the body line to graze / rises above it to look. still small vs the ~12px town houses nearby.
-    const x=c.x,y=c.y,graze=(c.mv||0)<0.25&&Math.sin(c.p*0.9)<0.55;
+    if(c.gone)continue;                                            // aboard the saucer, back in a few minutes
+    const lift=c.abdY||0;
+    if(lift>0)g.globalAlpha=clamp(1-lift/32,0.3,1);                // dissolves into the ship's belly as she rises
+    const x=c.x,y=c.y-lift,graze=(c.mv||0)<0.25&&Math.sin(c.p*0.9)<0.55;
     const hx3=x+(c.d>0?2.3:-3.3);                                  // head anchor, off the front of the barrel
     g.fillStyle=c.herf?S('#8a5a44',0.6):S('#2e2a28',0.6);
     g.fillRect(x-2.3,y-2.1,4.6,1.7);                               // barrel
@@ -2787,6 +2817,29 @@ function draw(){
     g.fillStyle=c.herf?S('#6a4232',0.6):S('#201d1c',0.6);
     g.fillRect(x-1.9,y-0.5,0.8,1.3);g.fillRect(x+1.2,y-0.5,0.8,1.3); // fore + hind legs, daylight between them
     g.fillRect(x+(c.d>0?-2.5:1.9),y-2.1,0.6,1);                    // tail nub off the rump
+    if(lift>0)g.globalAlpha=1;
+  }
+  // the saucer working the hills — drawn after the cow so she rises INTO its belly
+  if(cowUfo){
+    const u=cowUfo,ux=u.x,uy=u.y+Math.sin(rt*3)*0.8;
+    if(u.ph==='beam'){ // the tractor beam, cool pale green, flickering faintly
+      const c9=u.cow,gy=c9.y+1;
+      g.save();g.globalCompositeOperation='lighter';
+      g.globalAlpha=0.2+0.05*Math.sin(rt*9);
+      g.beginPath();g.moveTo(ux-2.2,uy+1.4);g.lineTo(ux+2.2,uy+1.4);g.lineTo(c9.x+5,gy);g.lineTo(c9.x-5,gy);g.closePath();
+      g.fillStyle='#bfffd2';g.fill();
+      g.globalAlpha=0.13;g.beginPath();g.ellipse(c9.x,gy,6,1.6,0,0,TAU);g.fill(); // ground glow at her hooves
+      g.restore();g.globalAlpha=1;
+    }
+    g.fillStyle=S('#8e9aa8',0.5);                                   // hull
+    g.beginPath();g.ellipse(ux,uy,7,2.1,0,0,TAU);g.fill();
+    g.fillStyle=S('#c9d4de',0.45);                                  // sun catch across the top
+    g.beginPath();g.ellipse(ux,uy-0.7,4.6,1.1,0,0,TAU);g.fill();
+    g.fillStyle=S('#aebdd0',0.45);                                  // dome
+    g.beginPath();g.ellipse(ux,uy-2,2.4,1.5,0,0,TAU);g.fill();
+    g.fillStyle=S('#39424e',0.5);g.fillRect(ux-4.5,uy+0.8,9,0.7);   // underside band
+    g.fillStyle='#d8ffe4';
+    for(let i=0;i<4;i++)if((((rt*6)|0)+i)%4===0)g.fillRect(ux-3.9+i*2.4,uy+0.8,0.8,0.7); // chasing running lights
   }
 
   // (hillside crop-art retired — carved letters never sat right against the hill)
