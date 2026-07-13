@@ -948,7 +948,7 @@ function update(dt){
     if(sale.ph===0){sale.x-=38*vdt;if(sale.x<=stopX){sale.x=stopX;sale.ph=1;sale.t=0;}}
     else if(sale.ph===1){sale.t+=vdt;if(sale.t>7){sale.ph=2;
     if(lotStock>0&&Math.random()<0.7){lotStock--;sale.sold=true;}}} // some folks just look
-    else{sale.x+=38*vdt;if(sale.x>W+90)sale=null;}
+    else{sale.x+=30*vdt;if(sale.x>W+90)sale=null;}  // hauls off at traffic speed — it's towing a machine, not racing (was 38, the fastest thing on the road)
   }
   // balloon & jet
   if(!balloon&&!hawk&&dl>0.45&&tod<0.5&&wind<12&&weather<0.2&&vdt>0&&Math.random()<0.000006)balloon={x:-16,y:40+Math.random()*28,ph:Math.random()*9}; // a rare calm-morning treat (never while the hawk's up)
@@ -1443,7 +1443,7 @@ function update(dt){
   // knock off at dusk — drop the field task so it drives home to the barn instead of freezing lit in the row
   if(tract.task&&tract.task.mode!=='cart'&&((tod>0.78&&!nightShift)||weather>0.55))tract.task=null; // knock off at dusk or when the rain sets in
   if(combine&&!combine.leave&&tod>0.87&&!nightShift)combine.leave=true; // combine heads for the field edge rather than stalling
-  const step=(live?vdt:sim)*15*LX;
+  const step=(live?vdt:sim)*12*LX; // field pace just over the combine's 11 (was 15 — read hurried next to it); the cart chase at step*1.5 still overtakes to rendezvous
   const tY=tract.task?ROWY[tract.task.row]:PARK.y;
   const tS=tract.task?0.5+ROWSC[tract.task.row]*0.55:0.78;
   tract.y+=(tY-tract.y)*Math.min(1,vdt*3);
@@ -1494,7 +1494,7 @@ function update(dt){
     combine.reel+=vdt*6;
     const cw=tod>0.3&&tod<0.9&&weather<0.5;
     if(combine.leave){
-      combine.x+=combine.dir*18*vdt;
+      combine.x+=combine.dir*18*LX*vdt; // road gear home — scaled like the work speed, so on wide spans it doesn't leave slower than it harvests
       if(combine.x<-40||combine.x>W+40)combine=null;
     } else if(unld){
       const tx6=combine.x-combine.dir*24;
@@ -1530,7 +1530,7 @@ function update(dt){
     sprayer={x:-24,dir:1,row:(sprayRow++)%ROWS,hitT:0};sprayerDue=false;
   }
   if(sprayer){
-    const sspd=(live?vdt:sim)*16*LX,px0=sprayer.x;
+    const sspd=(live?vdt:sim)*10*LX,px0=sprayer.x; // deliberate pass, a touch under the combine — a See & Spray reading every plant, not rolling through (was 16, Austin: "rolls by fairly quick")
     sprayer.x+=sprayer.dir*sspd;
     sprayer.hitT=Math.max(0,sprayer.hitT-vdt);
     const lo=Math.min(px0,sprayer.x)-16,hi=Math.max(px0,sprayer.x)+16;
