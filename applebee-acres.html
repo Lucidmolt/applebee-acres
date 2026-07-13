@@ -1851,28 +1851,8 @@ function fenceRun(x1,x2){
   g.globalAlpha=0.8;g.fillRect(x1,HOR-4,x2-x1,1);g.fillRect(x1,HOR-2,x2-x1,1);g.globalAlpha=1;
   if(snowCover>0.3){g.fillStyle=css(SNOW);for(let x=x1;x<=x2;x+=9)g.fillRect(x+(((x*7)%23)<3?1:0),HOR-6,1,1);}
 }
-function perchBirds(x1,x2){ // meadowlarks on the top rail (day, no rain, not deep winter)
-  // the old sprite was THREE 1px DOTS (body/head/tail) with a bobbing head — read as
-  // "little pixel dots grazing" on the fence line (Austin, 2026-07-13). Same legibility
-  // floor as the hill cows: below ~4px nothing reads. Now an actual bird silhouette,
-  // and sparser — a lone bird on a post reads BIRD, a row of dots reads artifact.
-  if(dl<0.4||seasonIdx===3||weather>0.5)return;
-  for(let x=x1+7;x<x2-4;x+=34){
-    if(((x*13)%5)>1)continue;                               // the odd post gets a bird, most don't
-    const hop=(((rt*0.5+x)|0)%9===0)?1:0, look=Math.sin(rt*0.6+x*0.4)>0.6, D=((x*7)%2)?1:-1;
-    const by=HOR-6-hop;
-    const flick=Math.sin(rt*2.3+x*1.7)>0.86?0.5:0;          // an occasional tail-flick — the "it's alive" tell
-    g.fillStyle=S('#38302a',0.55);
-    g.fillRect(x-D*1.9-(D>0?0:1.3),by-0.9-flick,1.3,0.5);   // perky tail, angled up off the rump
-    g.fillStyle=S('#5a4e42',0.55);
-    g.fillRect(x-0.9,by-0.3,1.8,1.3);                       // plump body, feet on the rail
-    g.fillRect(x+D*0.9-(D>0?0:1),by-1.1-(look?0.35:0),1,1); // head, raised when it looks around
-    g.fillStyle=S('#3a332b',0.55);
-    g.fillRect(x+D*1.7-(D>0?0:0.5),by-0.9-(look?0.35:0),0.5,0.35); // beak
-    g.fillStyle=S('#d8b93f',0.5);
-    g.fillRect(x-0.4,by+0.35,0.9,0.55);                     // the meadowlark's yellow breast — Kansas's own
-  }
-}
+// (fence birds REMOVED 2026-07-13 at Austin's call — at fence-rail scale a bird can't read
+//  as a bird to a store visitor without being told what it is. Do not re-add.)
 function drawDealership(){
   const lit=dl<0.45;
   // paved lot
@@ -3106,9 +3086,6 @@ function draw(){
   fenceRun(HX+32,DX-12);
   if(WMX-10>LOTX2+6)fenceRun(LOTX2+6,WMX-10);
   if(VFWX-20>WMX+8)fenceRun(WMX+8,VFWX-20);
-  perchBirds(HX+32,DX-12);
-  if(WMX-10>LOTX2+6)perchBirds(LOTX2+6,WMX-10);
-  if(VFWX-20>WMX+8)perchBirds(WMX+8,VFWX-20);
 
   // the farmhouse lawn — kept trim; a few short blades for texture
   if(snowCover<0.6){
