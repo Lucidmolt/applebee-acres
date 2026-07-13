@@ -25,5 +25,6 @@ evolve/*.bak
 # Info-ZIP in-progress temp files (zi + 6 random chars) — a git add racing a running zip once swept one in
 windows-screensaver/zi??????
 
-# separate game project brief — lives here for a future session, not part of the farm
-MAZE-ADVENTURE-BRIEF.md
+
+# maze game — its own project living in Creative; keep it out of the farm repo
+maze game/
