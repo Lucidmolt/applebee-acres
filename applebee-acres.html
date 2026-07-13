@@ -1771,6 +1771,11 @@ function hillPath(base,amp,s1,s2,p1,p2){
   for(let x=0;x<=W;x+=4)g.lineTo(x,base-(Math.sin(x*s1+p1)*0.6+Math.sin(x*s2+p2)*0.4)*amp);
   g.lineTo(W,H);g.closePath();g.fill();
 }
+// the NEAR ridge's edge line, mirroring hillPath(HOR-13,9,0.013,0.031,1.7,4.0) exactly.
+// Anything "standing on the hills" must seat on THIS, not a fixed y: the wave swings ±9px
+// and its alignment against AX-scaled anchors shifts with screen width — a fixed baseline
+// floats over the dips at some aspects (Austin caught the town levitating on the live site).
+function hillEdgeY(x){return HOR-13-(Math.sin(x*0.013+1.7)*0.6+Math.sin(x*0.031+4.0)*0.4)*9;}
 function tree(x,big){
   const s=(big?1:0.75)*(1+Math.min(0.25,yF*0.08));
   P(x-1,HOR-8*s,2,8*s,'#5a4632');
@@ -2430,7 +2435,7 @@ function drawTruck(x,y,s,dir){
   g.restore();
 }
 function drawTown(){
-  const TX2=AX(124),byBase=HOR-14; // seated in the open gap east of the farmhouse — the skyline reads at every aspect
+  const TX2=AX(124); // in the open gap east of the farmhouse — every lot seats on the ACTUAL ridge (hillEdgeY), so the skyline hugs the hill at every aspect
   const bA=mixA(C('#7e8496'),spal('hillFar'),0.35);
   const bcol=shA(bA,0.5);
   const blite=shA(mixA(bA,C('#e8e6da'),0.3),0.5);
@@ -2438,16 +2443,15 @@ function drawTown(){
   const tint=j=>{const t6=j%3; // warm / plain / cool — no two lots painted alike
     return t6===0?shA(mixA(bA,C('#9a8672'),0.16),0.5)
           :t6===2?shA(mixA(bA,C('#68809c'),0.16),0.5):bcol;};
-  let mnX=1e9,mxX=-1e9;
   for(let i=0;i<townN&&i<TOWN.length;i++){
     const B=TOWN[i];
-    const by=byBase+(B.dy||0);
+    const seat=hillEdgeY(TX2+B.dx+B.w/2);
+    const by=Math.max(seat+1,seat+2.5+(B.dy||0)); // base sunk into the hill; back-street lots (dy<0) sit a touch higher, but never above the edge
     const last=(i===townN-1&&townProg<1);
     const frac=last?(0.25+0.75*townProg):1;
     const h=Math.max(1,Math.round(B.h*frac));
     const x=TX2+B.dx,y=by-h;
     const bcl=tint(i);
-    if(!B.dy&&frac>=0.99){mnX=Math.min(mnX,x);mxX=Math.max(mxX,x+B.w);}
     g.fillStyle=bcl;
     g.fillRect(x,y,B.w,h);
     if(frac>=0.99){
@@ -2497,9 +2501,8 @@ function drawTown(){
       g.fillStyle=shA(C('#7a6a50'),0.5);g.fillRect(x-2.5,by-1.7,1.5,0.7);
     }
   }
-  if(mxX-mnX>8){ // main street seats the buildings
-    g.globalAlpha=0.2;g.fillStyle=blite;
-    g.fillRect(mnX-2,byBase,mxX-mnX+4,1);g.globalAlpha=1;
+  { // (the old straight main-street strip is gone — it was a fix for the fixed-baseline float,
+    //  and a straight line can't seat buildings that now drape the ridge contour)
   }
   // the town keeps growing after the plan is built out (through ~2029)
   const doneAt=TGROW[TOWN.length-1];
@@ -2507,7 +2510,8 @@ function drawTown(){
     const extraN=Math.min(12,Math.floor((epDay-doneAt)/45));
     for(let i=0;i<extraN;i++){
       const side=i%2?1:-1,ring=(i>>1)+1;
-      const x=TX2+side*(33+ring*5)+((i*7)%3),by2=byBase+(i%3===0?0:-3);
+      const x=TX2+side*(33+ring*5)+((i*7)%3);
+      const st2=hillEdgeY(x+1.5),by2=Math.max(st2+1,st2+2.5+(i%3===0?0:-3)); // outskirt lots seat on the ridge like the rest of town
       g.fillStyle=tint(i+1);
       g.fillRect(x,by2-3,3,3);
       g.beginPath();g.moveTo(x-1,by2-3);g.lineTo(x+1.5,by2-5);g.lineTo(x+4,by2-3);g.closePath();g.fill();
@@ -2515,17 +2519,18 @@ function drawTown(){
     }
     if(extraN<12&&(epDay-doneAt)%45<4){
       const i=extraN,side=i%2?1:-1,ring=(i>>1)+1,x=TX2+side*(33+ring*5);
+      const cb=hillEdgeY(x+4)+2;                                    // the mini-crane stands on the ridge too
       g.strokeStyle=shA(C('#8a6a2e'),0.45);g.lineWidth=1;g.beginPath();
-      g.moveTo(x+4,byBase);g.lineTo(x+4,byBase-8);
-      g.moveTo(x,byBase-8);g.lineTo(x+8,byBase-8);g.stroke();
-      g.fillStyle=shA(C('#9a8a6e'),0.5);g.fillRect(x-2,byBase-1,2,1); // lumber, waiting
+      g.moveTo(x+4,cb);g.lineTo(x+4,cb-8);
+      g.moveTo(x,cb-8);g.lineTo(x+8,cb-8);g.stroke();
+      g.fillStyle=shA(C('#9a8a6e'),0.5);g.fillRect(x-2,cb-1,2,1); // lumber, waiting
     }
   }
   // county fair week: the wheel comes to town
   const fair=live?(liveDate.getMonth()===7&&liveDate.getDate()>=20&&liveDate.getDate()<=27)
                  :(seasonIdx===1&&seasonT>0.85);
   if(fair){
-    const fx2=AX(276),fy2=byBase-1; // fairgrounds in the clear stretch past the windmill
+    const fx2=AX(276),fy2=hillEdgeY(fx2)+1.5; // fairgrounds seated on the ridge in the clear stretch past the windmill
     g.strokeStyle=shA(C('#8a5a70'),0.5);g.lineWidth=1;g.beginPath();
     g.moveTo(fx2-3,fy2);g.lineTo(fx2,fy2-7);g.moveTo(fx2+3,fy2);g.lineTo(fx2,fy2-7);
     for(let i2=0;i2<5;i2++){const a3=rt*0.35+i2*TAU/5;
@@ -2877,7 +2882,7 @@ function draw(){
     if(c.gone)continue;                                            // aboard the saucer, back in a few minutes
     const lift=c.abdY||0;
     if(lift>0)g.globalAlpha=clamp(1-lift/32,0.3,1);                // dissolves into the ship's belly as she rises
-    const x=c.x,y=c.y-lift,graze=(c.mv||0)<0.25&&Math.sin(c.p*0.9)<0.55;
+    const x=c.x,y=Math.max(c.y,hillEdgeY(c.x)+1.5)-lift,graze=(c.mv||0)<0.25&&Math.sin(c.p*0.9)<0.55; // seated on (or below) the ridge line — never floating over a dip
     const hx3=x+(c.d>0?2.3:-3.3);                                  // head anchor, off the front of the barrel
     g.fillStyle=c.herf?S('#8a5a44',0.6):S('#2e2a28',0.6);
     g.fillRect(x-2.3,y-2.1,4.6,1.7);                               // barrel
@@ -2893,7 +2898,7 @@ function draw(){
   if(cowUfo){
     const u=cowUfo,ux=u.x,uy=u.y+Math.sin(rt*3)*0.8;
     if(u.ph==='beam'){ // the tractor beam, cool pale green, flickering faintly
-      const c9=u.cow,gy=c9.y+1;
+      const c9=u.cow,gy=Math.max(c9.y,hillEdgeY(c9.x)+1.5)+1;      // beam foot lands where the cow actually stands
       g.save();g.globalCompositeOperation='lighter';
       g.globalAlpha=0.2+0.05*Math.sin(rt*9);
       g.beginPath();g.moveTo(ux-2.2,uy+1.4);g.lineTo(ux+2.2,uy+1.4);g.lineTo(c9.x+5,gy);g.lineTo(c9.x-5,gy);g.closePath();
