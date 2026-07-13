@@ -327,8 +327,10 @@ function drawFolk(f){
   const x=f.x,y=f.y|0;
   const small=(f.id==='kid'&&YRS<2)||f.id==='kid2';
   const D=f.dir>0?1:-1;
-  const step=f.walking?((f.stepT|0)%2):0;
-  const bob=f.walking?(step?0.4:0):0;
+  const ph=f.stepT*Math.PI;                          // continuous gait phase — SS=2 renders the fractional px, so limbs glide instead of snapping between two poses
+  const lsw=f.walking?Math.sin(ph):0;                // leg scissor, -1..1
+  const t2=f.walking?(lsw+1)*0.25:0;                 // feet converge/spread 0..0.5, smoothly
+  const bob=f.walking?Math.abs(Math.sin(ph))*0.22:0; // gentle rise at each midstance (twice per stride), not a 0.4px pop
   const LH=small?2:3,TH=small?2:3;
   shadow(x+0.5,y,2.1);
   if(f.sit){
@@ -346,12 +348,12 @@ function drawFolk(f){
     g.fillStyle=S(f.shirt,0.58);
     g.fillRect(x-1.5,legTop,4,LH);                             // skirt
     g.fillStyle=S(f.pants,0.6);
-    g.fillRect(x-0.5+(step?0.5:0),y-1,1,1);
-    g.fillRect(x+0.6-(step?0.5:0),y-1,1,1);
+    g.fillRect(x-0.5+t2,y-1,1,1);
+    g.fillRect(x+0.6-t2,y-1,1,1);
   }else{
     g.fillStyle=S(f.id==='tech'?f.shirt:f.pants,0.58);        // Manny's coveralls
-    g.fillRect(x-1+(step?0.5:0),legTop,1,LH);
-    g.fillRect(x+1-(step?0.5:0),legTop,1,LH);
+    g.fillRect(x-1+t2,legTop,1,LH);
+    g.fillRect(x+1-t2,legTop,1,LH);
   }
   g.fillStyle=S(f.shirt,0.58);
   g.fillRect(x-1,tTop,3,TH);
@@ -360,7 +362,7 @@ function drawFolk(f){
   if(f.id==='farmer'){g.fillStyle=S(f.pants,0.58);g.fillRect(x,tTop,1,TH);}       // Earl's bib
   if(f.id==='tech'){g.fillStyle=S('#e8853c',0.55);g.fillRect(x+0.1,tTop+1,0.8,1);} // shop rag
   if(f.id==='dot'){g.fillStyle=S('#eae6d8',0.55);g.fillRect(x-0.6,tTop+0.6,1.8,TH-0.8);} // apron
-  const asw=f.walking?(step?0.7:-0.7):0;
+  const asw=lsw*0.32; // arms counter-sway gently (was a ±0.7 vertical pump every flip — read as sprinting shoulders)
   g.fillStyle=S(f.skin,0.52);
   g.fillRect(x-1.9,tTop+0.4+asw,0.9,2);
   if(f.hold>0&&f.wave)g.fillRect(x+D*1.9,tTop-2.2-((rt*5|0)%2)*0.6,0.9,2.2);
@@ -1603,7 +1605,8 @@ function update(dt){
     f.sit=!!plan.sit&&weather<0.4&&Math.abs(f.tx-f.x)<=1.6;   // walk to the porch first, then sit (never sit out in the rain)
     const dx4=f.tx-f.x;
     if(Math.abs(dx4)>1.2&&!f.sit){f.dir=dx4>0?1:-1;
-      f.x+=f.dir*(f.id==='kid'?12:6.5)*vdt;f.stepT+=vdt*8;f.walking=true;}
+      const spd=f.id==='kid'?12:6.5;
+      f.x+=f.dir*spd*vdt;f.stepT+=vdt*spd*0.45;f.walking=true;}  // cadence tracks ground speed (~3 steps/s amble, Wade scampers) — was a flat 8 flips/s on everyone
     else f.walking=false;
   }
   {
