@@ -2782,13 +2782,19 @@ function draw(){
   hillPath(HOR-4,5,0.021,0.043,9.0,2.0);
   // distant cattle grazing the far hills (occluded by the foreground buildings, which draw later = depth)
   if(dl>0.4&&snowCover<0.6)for(const c of hillCows){
-    const x=c.x,y=c.y,graze=(c.mv||0)<0.25&&Math.sin(c.p*0.9)<0.55;  // head down eating; up while ambling or an occasional look-around — and NO |0 snap: the old integer x made a 3px cow tick sideways a whole pixel at a time
+    // the old 3px sprite was below the legibility floor — read as a worm lifting a nub (Austin, 2026-07-13).
+    // minimum legible cow: longer barrel, a leg GAP (the quadruped signature), and a head that drops
+    // BELOW the body line to graze / rises above it to look. still small vs the ~12px town houses nearby.
+    const x=c.x,y=c.y,graze=(c.mv||0)<0.25&&Math.sin(c.p*0.9)<0.55;
+    const hx3=x+(c.d>0?2.3:-3.3);                                  // head anchor, off the front of the barrel
     g.fillStyle=c.herf?S('#8a5a44',0.6):S('#2e2a28',0.6);
-    g.fillRect(x-1,y-1,3,1.4);                                    // body
-    g.fillRect(x+(c.d>0?2:-1),y-(graze?0.4:1.2),1,graze?1:1.6);   // head (down grazing / up)
-    if(c.herf){g.fillStyle=S('#e8e0d4',0.6);g.fillRect(x+(c.d>0?2:-1),y-(graze?0.4:1.2),1,0.7);}
+    g.fillRect(x-2.3,y-2.1,4.6,1.7);                               // barrel
+    if(graze){g.fillRect(hx3,y-1.1,1,1.3);}                        // neck+head reaching DOWN to the grass
+    else{g.fillRect(hx3,y-3.1,1,2.4);g.fillRect(hx3+(c.d>0?0.7:-0.7),y-3.1,0.6,0.8);} // head UP, muzzle forward
+    if(c.herf){g.fillStyle=S('#e8e0d4',0.6);g.fillRect(hx3,graze?y-1.1:y-3.1,1,0.6);} // Hereford white face
     g.fillStyle=c.herf?S('#6a4232',0.6):S('#201d1c',0.6);
-    g.fillRect(x-0.8,y+0.4,0.7,1);g.fillRect(x+1.3,y+0.4,0.7,1);  // legs
+    g.fillRect(x-1.9,y-0.5,0.8,1.3);g.fillRect(x+1.2,y-0.5,0.8,1.3); // fore + hind legs, daylight between them
+    g.fillRect(x+(c.d>0?-2.5:1.9),y-2.1,0.6,1);                    // tail nub off the rump
   }
 
   // (hillside crop-art retired — carved letters never sat right against the hill)
