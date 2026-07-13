@@ -2606,14 +2606,8 @@ function draw(){
       g.beginPath();g.moveTo(shoot.x,shoot.y);g.lineTo(shoot.x-shoot.vx*0.09,shoot.y-shoot.vy*0.09);g.stroke();}
   }
 
-  // fireworks
-  if(fw.length){
-    g.globalCompositeOperation='lighter';
-    for(const p of fw){
-      if(p.rk){g.fillStyle='rgba(255,233,176,0.9)';g.fillRect(p.x|0,p.y|0,1,2);}
-      else{g.globalAlpha=Math.max(0,Math.min(1,p.life));g.fillStyle=p.col;g.fillRect(p.x|0,p.y|0,1,1);}
-    }
-    g.globalAlpha=1;g.globalCompositeOperation='source-over';}
+  // (fireworks moved after the hills/town/haze block — they launch from the fairground,
+  //  so they bloom in FRONT of the horizon instead of being clipped behind it)
 
   // comet / satellite / meteor shower
   if(strange.comet&&dl<0.35){
@@ -2759,6 +2753,14 @@ function draw(){
     hz.addColorStop(1,`rgba(${ha[0]|0},${ha[1]|0},${ha[2]|0},${0.34+0.1*(1-dl)})`);
     g.fillStyle=hz;g.fillRect(0,HOR-15,W,15);
   }
+  // fireworks — launched off the fairground, bursting over the hills, in front of the horizon
+  if(fw.length){
+    g.globalCompositeOperation='lighter';
+    for(const p of fw){
+      if(p.rk){g.fillStyle='rgba(255,233,176,0.9)';g.fillRect(p.x|0,p.y|0,1,2);}
+      else{g.globalAlpha=Math.max(0,Math.min(1,p.life));g.fillStyle=p.col;g.fillRect(p.x|0,p.y|0,1,1);}
+    }
+    g.globalAlpha=1;g.globalCompositeOperation='source-over';}
   // the disputed parcel on the east hill
   if(sagaStakes){
     const px6=AX(211),py6=HOR-18; // open hill east of the store — visible at every aspect
@@ -3097,9 +3099,12 @@ function draw(){
   }
   // planted yard signs sit on the ground — drawn after the lawn but before the movers, so folk and vehicles pass in front
   if(sagaSigns){drawSign(HX+16,126);drawSign(VFWX-22,125);drawSign(DX-18,126);}
-  // chickens
-  if(dl>0.35&&seasonIdx!==3&&weather<0.45){
+  // chickens — split into two depth passes: barnyard hens here (behind the field), and
+  // field-strolling hens inside the row loop after r=0, so row-0 stalks stop painting over them
+  function drawHens(filt){
+    if(!(dl>0.35&&seasonIdx!==3&&weather<0.45))return;
     for(const c of chicks){
+      if(!filt(c))continue;
       const peck=Math.sin(c.pk)>0.3&&Math.abs(c.tx-c.x)<=1.5;
       const stepj=Math.abs(c.tx-c.x)>1.5?Math.max(0,Math.sin(c.x*2.8))*0.6:0; // the signature hen head-jab, keyed to ground covered
       const hx2=(c.d>0?c.x+3:c.x-1)+c.d*stepj, hy=peck?c.y-3:c.y-5;
@@ -3111,6 +3116,7 @@ function draw(){
       P(c.x+1,c.y-1,1,1,'#b08a3c',0.6);
     }
   }
+  drawHens(c8=>c8.y<ROWY[0]);
 
   // the picnic ground cloth goes down before the folk who sit and play on it
   if(yardPlay){
@@ -3280,6 +3286,16 @@ function draw(){
   if(!tract.task)drawTractorAt(tract.x,tract.y,tract.s,tract.dir,tract.mov,true);
 
   // crop rows, bales, working tractor
+  // impact crater — a scar IN the ground, so everything that stands on the field draws over it
+  if(crater){
+    const cy4=ROWY[crater.row],sc4=ROWSC[crater.row];
+    g.fillStyle=shA(C('#4a4036'),0.7);
+    g.beginPath();g.ellipse(crater.x,cy4,9*sc4,3*sc4,0,0,TAU);g.fill();
+    g.fillStyle=shA(C('#241f1a'),0.7);
+    g.beginPath();g.ellipse(crater.x,cy4,6.5*sc4,2*sc4,0,0,TAU);g.fill();
+    if(crater.age<90&&((rt*7|0)%2)){g.fillStyle='#ff9d2e';
+      g.fillRect(crater.x-2,cy4-1,1,1);g.fillRect(crater.x+3,cy4,1,1);}
+  }
   for(let r=0;r<ROWS;r++){
     const y=ROWY[r],sc=ROWSC[r];
     for(let i=0;i<COLX.length;i++){
@@ -3316,6 +3332,7 @@ function draw(){
       if(dl<0.35&&!combine.leave)workLights(combine.x,ROWY[r],cs2,combine.dir,false);
     }
     if(sprayer&&sprayer.row===r)drawSprayer(sprayer.x,ROWY[r],0.5+ROWSC[r]*0.55,sprayer.dir);
+    if(r===0)drawHens(c8=>c8.y>=ROWY[0]); // hens strolling row 0 stand among its stalks — over row-0 crops, still behind rows 1-3
   }
 
   // grain on the go & targeted spray
@@ -3338,16 +3355,8 @@ function draw(){
     g.fillRect(sprayer.hitX,hy4-3,1,1);
   }
 
-  // impact crater
-  if(crater){
-    const cy4=ROWY[crater.row],sc4=ROWSC[crater.row];
-    g.fillStyle=shA(C('#4a4036'),0.7);
-    g.beginPath();g.ellipse(crater.x,cy4,9*sc4,3*sc4,0,0,TAU);g.fill();
-    g.fillStyle=shA(C('#241f1a'),0.7);
-    g.beginPath();g.ellipse(crater.x,cy4,6.5*sc4,2*sc4,0,0,TAU);g.fill();
-    if(crater.age<90&&((rt*7|0)%2)){g.fillStyle='#ff9d2e';
-      g.fillRect(crater.x-2,cy4-1,1,1);g.fillRect(crater.x+3,cy4,1,1);}
-  }
+  // (impact crater moved BEFORE the field row loop — it's a hole in the ground, so
+  //  crops, bales, and working machines all draw over it, not under it)
 
   // fire, water truck, spray & prairie oddities
   if(fire&&fire.phase<2&&fire.r>0.3){
