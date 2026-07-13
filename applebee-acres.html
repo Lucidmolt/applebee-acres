@@ -220,8 +220,8 @@ function drawHunter(D){
     if(i<D.shots){g.fillStyle='#c04a2a';g.fillRect(x-4+i*2,y-12,1,0.7);}}
   for(let i=0;i<Math.min(D.bag,5);i++){g.fillStyle=S('#33333c',0.6);g.fillRect(x-3+i*2,y-0.5,1.6,1);}
 }
-function startKaiju(){ // the lizard surfaces east of town and considers his options
-  kaiju={t:0,x:AX(196),tx:AX(154),up:0};
+function startKaiju(){ // surfaces WAY out east past the VFW and marches west on the open ridge — full profile the whole way (his first stage spot was hidden behind the Keating building, Austin barely saw him)
+  kaiju={t:0,x:AX(320),tx:AX(235),up:0};
 }
 function startCowUfo(){ // the mid-day abduction: pick a cow that's out grazing and send the saucer for her
   const avail=hillCows.filter(hc=>!hc.gone&&!hc.abd);
@@ -1082,11 +1082,11 @@ function update(dt){
   if(!kaiju&&kaijuAt>0&&tod>kaijuAt&&tod<kaijuAt+0.06&&dl>0.35&&weather<0.55&&!plane&&!jet&&!balloon&&!hawk&&!cowUfo){kaijuAt=-1;startKaiju();}
   if(kaiju){
     const k=kaiju;k.t+=vdt;
-    const rise=clamp(k.t/2.5,0,1),sink=clamp((k.t-17.5)/2.5,0,1);
+    const rise=clamp(k.t/2.5,0,1),sink=clamp((k.t-21.5)/2.5,0,1);
     k.up=rise*(1-sink);                                              // 0 -> looming -> back down behind the ridge
-    if(k.t>2.5&&k.t<12){if(Math.abs(k.tx-k.x)>1)k.x+=Math.sign(k.tx-k.x)*4.4*vdt;} // advances on the town, unhurried
-    else if(k.t>=13&&k.t<17.5)k.x+=9*vdt;                            // thinks better of it — the escort herds him east
-    if(k.t>24)kaiju=null;
+    if(k.t>2.5&&k.t<14){if(Math.abs(k.tx-k.x)>1)k.x+=Math.sign(k.tx-k.x)*7*vdt;} // the long march west toward town
+    else if(k.t>=16&&k.t<21)k.x+=11*vdt;                             // thinks better of it — the escort herds him east
+    if(k.t>27)kaiju=null;
   }
   // snowman
   if(!snowman&&snowCover>0.55&&dl>0.5&&vdt>0&&Math.random()<0.0004)snowman={b:0.01};
@@ -2785,36 +2785,40 @@ function draw(){
   // the town (drawn later, in front) can never actually be touched. He looms, he does not land.
   if(kaiju&&kaiju.up>0.02){
     const k=kaiju,sw=Math.sin(rt*0.9)*0.9,kx=k.x+sw,yb=HOR-8;
-    const h=19*k.up,top=yb-h;
-    const roar=((k.t>6&&k.t<7.5)||(k.t>10&&k.t<11.5))?1:0;
-    const D=k.t<12.5?-1:1;                                   // faces the town on approach, turns away when herded off
+    const h=27*k.up,top=yb-h;                                // properly MASSIVE — twice the tallest town building
+    const roar=((k.t>8&&k.t<9.5)||(k.t>12&&k.t<13.5))?1:0;
+    const D=k.t<15.5?-1:1;                                   // faces the town on the march, turns away when herded off
     g.fillStyle=S('#46543f',0.55);
-    g.fillRect(kx-4.65,top+4,9.3,Math.max(0,h-4));           // torso, shoulders above the ridge
-    g.fillRect(kx+D*4.6-1.5,top+9.5,3,2.4);                  // stubby near arm
-    g.fillRect(kx-D*5.2-1.2,top+6.5,2.4,7);                  // thick tail base rising behind
-    g.fillRect(kx-D*7,top+4.5+Math.sin(rt*1.3)*0.8,2,3);     // tail tip, swaying
-    const hy0=top+(roar?-0.8:0);                             // head lifts to bellow
-    g.fillRect(kx+D*2.6-3,hy0,6,3.6);                        // head
-    g.fillRect(kx+D*2.6-3.4,hy0-0.7,6.8,1);                  // brow ledge
-    g.fillRect(kx+D*4.4-2,hy0+2.6+(roar?1.5:0.2),4.6,1.3);   // jaw — drops open in the roar
+    g.fillRect(kx-4.65,top+11,9.3,Math.max(0,h-11));         // hips — the big rear mass a rex balances on
+    g.fillRect(kx+D*1.5-3.5,top+6,7,7);                      // chest, leaning into the walk
+    g.fillRect(kx+D*4-2,top+2.5,4,5.5);                      // thick neck, forward
+    const hy0=top+(roar?-1:0);                               // head rears back to bellow
+    g.fillRect(kx+D*6-4.25,hy0,8.5,4.2);                     // the skull — huge, the whole silhouette
+    g.fillRect(kx+D*9.5-2,hy0+1,4,2.3);                      // long snout
+    g.fillRect(kx+D*6-4.6,hy0-0.8,7,1);                      // heavy brow
+    g.fillRect(kx+D*8-3.5,hy0+3.5+(roar?2.4:0.3),7,1.7);     // deep jaw — swings wide open in the roar
+    g.fillRect(kx+D*3.6-0.7,top+8.5,1.4,2.3);                // the famous tiny arm
+    g.fillRect(kx+D*4.6-0.6,top+9.2,1.2,1.8);                // ...and its tiny friend
+    g.fillRect(kx-D*6.2-1.5,top+11,3.2,4.5);                 // tail base, thick off the hips
+    g.fillRect(kx-D*8.8-1.3,top+9.5,2.6,3.2);                // tail, sweeping up and back
+    g.fillRect(kx-D*11-1,top+8+Math.sin(rt*1.3)*0.9,2,2.2);  // tail tip, swaying — the counterweight
     g.fillStyle=S('#5d6b52',0.5);
-    g.fillRect(kx-3.4,top+7,2.2,Math.max(0,h-8));            // belly tone
-    g.fillStyle='#d8c060';g.fillRect(kx+D*4.2,hy0+1,0.9,0.9);// eye
-    g.fillStyle=S('#39463a',0.55);                           // dorsal plates down the spine
-    for(let i2=0;i2<3;i2++){const px=kx-D*(1+i2*1.9),py=top+3+i2*3.6,s2=3.4-i2*0.7;
-      g.beginPath();g.moveTo(px-s2*0.7,py+s2);g.lineTo(px,py-s2*0.6);g.lineTo(px+s2*0.7,py+s2);g.closePath();g.fill();}
-    if(roar&&((rt*8|0)%2)){                                  // visible bellow — sound arcs off the jaw
+    g.fillRect(kx+D*1.5-2.2,top+8,2.2,5);                    // belly tone under the chest
+    g.fillStyle='#d8c060';g.fillRect(kx+D*6.8,hy0+1.3,1,1);  // eye
+    g.fillStyle=S('#39463a',0.55);                           // low osteoderm bumps down the spine (a rex, not a movie monster)
+    for(let i2=0;i2<4;i2++)g.fillRect(kx-D*(i2*2.4-2.8)-0.5,top+2.6+i2*2.6-(i2>1?i2:0),1.1,0.9);
+    if(roar&&((rt*8|0)%2)){                                  // visible bellow — sound arcs off the snout
       g.strokeStyle='rgba(255,244,214,0.5)';g.lineWidth=1;
-      g.beginPath();g.arc(kx+D*7.5,hy0+2.4,2.5,D>0?-0.7:Math.PI-0.7,D>0?0.7:Math.PI+0.7);g.stroke();
-      g.beginPath();g.arc(kx+D*7.5,hy0+2.4,4.2,D>0?-0.55:Math.PI-0.55,D>0?0.55:Math.PI+0.55);g.stroke();
+      g.beginPath();g.arc(kx+D*12,hy0+2.6,2.5,D>0?-0.7:Math.PI-0.7,D>0?0.7:Math.PI+0.7);g.stroke();
+      g.beginPath();g.arc(kx+D*12,hy0+2.6,4.2,D>0?-0.55:Math.PI-0.55,D>0?0.55:Math.PI+0.55);g.stroke();
     }
     for(let i2=0;i2<3;i2++){                                 // the escort: three army-green helicopters, in from the east
-      const en=8+i2*0.7; if(k.t<en)continue;
+      const en=10+i2*0.7; if(k.t<en)continue;
       const a2=clamp((k.t-en)/3,0,1),ea=a2*a2*(3-2*a2);      // ease in to their hover slots
-      const ex=clamp((k.t-(18+i2*0.5))/3.5,0,1);             // then peel off east
-      const hoX=[-16,4,19][i2],hoY=[-7,-11,-4][i2];
+      const ex=clamp((k.t-(21+i2*0.5))/3.5,0,1);             // then peel off east
+      const hoX=[-18,6,24][i2],hoY=[-9,-14,-5][i2];
       const bx=kx+95+i2*14+(hoX-95-i2*14)*ea+ex*ex*150;
-      const by=HOR-33+hoY+Math.sin(rt*2.3+i2*2)*0.9;
+      const by=HOR-40+hoY+Math.sin(rt*2.3+i2*2)*0.9;
       const f=ex>0.01?1:-1;                                  // face the lizard on station, face east leaving
       g.fillStyle=S('#4a4e3a',0.55);
       g.fillRect(bx-2.65,by-0.85,5.3,1.7);                   // fuselage
