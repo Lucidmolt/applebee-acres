@@ -1026,6 +1026,8 @@ function update(dt){
       c.x+=cattle.dir*spd*vdt;
       c.gait=(c.gait||0)+spd*0.5*vdt;                     // leg phase tracks ground speed, like the folk
       c.pulse=pulse;
+      if(cattle.spook&&vdt>0&&weather<0.35&&snowCover<0.2&&Math.random()<0.1)   // a trotting herd raises dust off dry stubble
+        smoke.push({x:c.x-cattle.dir*4,y:ROWY[c.row]+1,vx:-cattle.dir*1.5,vy:-1-Math.random(),life:0.7,max:0.7,c:'#c2ab84'});
       if(cattle.dir>0?c.x<W+18:c.x>-18)allGone=false;
     }
     if(allGone)cattle=null;
@@ -1500,6 +1502,8 @@ function update(dt){
     } else if(cw){
       const cspd=(live?vdt:sim)*11*LX,px0=combine.x;
       combine.x+=combine.dir*cspd;
+      if(vdt>0&&weather<0.35&&Math.random()<0.35)                    // chaff & dust boil off the header on a dry cut
+        smoke.push({x:combine.x-combine.dir*(9+Math.random()*5),y:ROWY[combine.row]-1,vx:-combine.dir*3+wind*0.08,vy:-1.5-Math.random()*2,life:0.9,max:0.9,c:Math.random()<0.3?'#d8c060':'#c2ab84'});
       const lo=Math.min(px0,combine.x)-5,hi=Math.max(px0,combine.x)+5;
       const row=cells[combine.row];
       for(let i=0;i<COLX.length;i++){
@@ -1536,7 +1540,9 @@ function update(dt){
     if(sprayer.x>W+34)sprayer=null;
   }
   if(moving){puffT-=vdt; if(puffT<0){puffT=0.16;
-    smoke.push({x:tract.x+tract.dir*3,y:tract.y-15*tract.s,vx:(Math.random()-0.5)*3,vy:-9-Math.random()*3,life:0.9,max:0.9,c:'#8b8f99'});}}
+    smoke.push({x:tract.x+tract.dir*3,y:tract.y-15*tract.s,vx:(Math.random()-0.5)*3,vy:-9-Math.random()*3,life:0.9,max:0.9,c:'#8b8f99'});
+    if(tract.task&&weather<0.35&&snowCover<0.2)                     // dry fieldwork kicks up a low tan plume behind the implement
+      smoke.push({x:tract.x-tract.dir*(7+Math.random()*4),y:tract.y-1,vx:-tract.dir*2+(Math.random()-0.5)*2,vy:-1.2-Math.random()*1.6,life:1.1,max:1.1,c:'#c2ab84'});}}
 
   // chimney smoke
   const coldOut=(live&&wx)?wx.tempF<55:(seasonIdx===3||(seasonIdx!==1&&dl<0.45));
@@ -1768,6 +1774,10 @@ function drawTractorAt(x,y,s,dir,mov,lit,rider){
   P(-9,-16,9,7,'#2f5f2e');P(-10,-17,11,1,'#24491f');
   g.fillStyle=lit&&dl<0.4?'#f2d98a':S(lit?'#b9d6e0':'#8ea8b4');
   g.fillRect(-8,-15,7,4);
+  if(dl>0.5&&!(lit&&dl<0.4)){ // daylight cab-glass glint, same treatment as the showroom
+    g.beginPath();g.moveTo(-6.4,-15);g.lineTo(-5.2,-15);g.lineTo(-6.8,-11);g.lineTo(-8,-11);g.closePath();
+    g.fillStyle='rgba(255,255,255,0.14)';g.fill();
+  }
   P(3,-15,1,6,'#3a3d45');P(2,-15,3,1,'#3a3d45');
   if(rider){                                        // a small seated operator in the cab
     const rc=rider==='red'?'#8a2f2a':'#e8853c';
@@ -2747,6 +2757,15 @@ function draw(){
   g.fillStyle=shA(mixA(spal('hillFar'),SNOW,snowCover*0.85),0.6);
   hillPath(HOR-13,9,0.013,0.031,1.7,4.0);
   drawTown();
+  { // aerial haze — the far ridge and town bases melt toward the sky at the horizon line (classic depth cue; follows the golden grade + night like everything else)
+    let ha=mixA(mixA(spal('hillFar'),C('#c6d2e0'),0.78),SNOW,snowCover*0.5);
+    if(ghK>0.01)ha=mixA(ha,GOLD,ghK);
+    ha=mixA(ha,NIGHT,(1-dl)*0.55);
+    const hz=g.createLinearGradient(0,HOR-15,0,HOR);
+    hz.addColorStop(0,`rgba(${ha[0]|0},${ha[1]|0},${ha[2]|0},0)`);
+    hz.addColorStop(1,`rgba(${ha[0]|0},${ha[1]|0},${ha[2]|0},${0.34+0.1*(1-dl)})`);
+    g.fillStyle=hz;g.fillRect(0,HOR-15,W,15);
+  }
   // the disputed parcel on the east hill
   if(sagaStakes){
     const px6=AX(211),py6=HOR-18; // open hill east of the store — visible at every aspect
@@ -2858,6 +2877,14 @@ function draw(){
   g.globalAlpha=1;
   g.fillStyle=S('#3a1d1d');g.fillRect(ddx,HOR-8,1,1);g.fillRect(ddx,HOR-3,1,1);    // hinges
   g.fillStyle=S('#d9cfc0',0.5);g.fillRect(ddx+6,HOR-5,1,1);                        // latch
+  if(dl<0.42){ // a lantern over the barn door burns through the night — the farmstead's answer to the dealership sign
+    const lk=clamp((0.42-dl)/0.2,0,1);
+    g.save();g.globalCompositeOperation='lighter';
+    g.translate(bx+10,HOR-10.5);g.scale(5.5,4.5);g.globalAlpha=0.55*lk;
+    g.fillStyle=SIGNG;g.fillRect(-1.05,-1.05,2.1,2.1);
+    g.restore();g.globalAlpha=1;
+    g.fillStyle=`rgba(255,214,120,${0.75*lk})`;g.fillRect(bx+9.6,HOR-11,0.8,1);    // the lamp itself
+  }
   P(bx+13,HOR-17,4,3,'#3a1d1d');
   g.globalAlpha=0.5;P(bx+12,HOR-18,6,1,'#d9cfc0');g.globalAlpha=1;                  // loft header
   if(snowCover>0.25){g.fillStyle=css(SNOW);g.fillRect(bx-3,HOR-21,37,1);g.fillRect(bx+4,HOR-29,22,1);}
@@ -3448,6 +3475,13 @@ function draw(){
     }
   }
   if(flashT>0){g.fillStyle=`rgba(240,244,255,${Math.min(0.45,flashT*2)})`;g.fillRect(0,0,W,H);}
+  { // heat shimmer on scorching afternoons — thin strips of the drawn scene wobble sideways over the far field (the same ≥97°F gate as the crop-fire risk)
+    const scorch2=live?(wx&&wx.tempF>=97&&weather<0.2):(seasonIdx===1&&weather<0.12);
+    if(scorch2&&dl>0.55&&fogT<=0)for(let i=0;i<4;i++){
+      const sy2=119+i*4,ox=Math.sin(rt*(5.5+i*0.9)+i*1.7)*0.5;
+      g.drawImage(cv,0,sy2*SS,cv.width,2*SS,ox,sy2,W,2);
+    }
+  }
   g.save();g.translate(W/2,H*0.52);g.scale(W*0.534,H*0.95);g.fillStyle=VIG;g.fillRect(-1.1,-1.1,2.2,2.2);g.restore(); // ellipse scales with W (0.534W ≈ the old H*0.95 radius at 16:9), so wide spans keep the single-screen framing
   if(shake)g.restore();
 
