@@ -5,7 +5,7 @@ The 3-agent audit (40 findings) was applied; mower removed (resolved ~6 findings
 LEFT UNDONE (all rare events — do if Austin reports them or wants full polish; each is a clean
 draw-order move unless noted):
 - Impact crater draws after field machines → move crater draw BEFORE the field-cell loop (asteroid gag only).
-- Crop duster (18% summer days) draws before hills/town → move after the hill/town block (or raise flight line above y92).
+- ~~Crop duster draws before hills/town~~ ✅ FIXED 2026-07-13 (Austin caught it live): duster now draws in the FOREGROUND, right after the smoke particles — in front of the buildings, over its own spray trail, visible the whole crossing. Verified by draw-call-order harness (scratchpad/duster-check.js pattern).
 - Fireworks (Jul4/NYE) draw before hills → move fw draw after hill/town block.
 - Chickens field-strolling in front of row-0 (y>134) get crops drawn over them → split chicken draw around the r=0 field iteration.
 - Row 3: sprayer-vs-fire now gated; cruise-vs-anything still unguarded (sim-mode only, very rare).
