@@ -479,7 +479,7 @@ const stars=[]; for(let i=0;i<Math.round(110*LX);i++)stars.push({x:rnd()*W,y:rnd
   c:rnd()<0.12?'255,220,190':(rnd()<0.14?'190,210,255':'226,232,255')});
 const clouds=[]; for(let i=0;i<Math.round(7*LX);i++)clouds.push({x:Math.random()*W,y:8+Math.random()*44,s:0.6+Math.random()*1.1,v:2+Math.random()*3});
 const flies=[]; for(let i=0;i<Math.round(14*LX);i++)flies.push({x:20+Math.random()*(W-40),y:HOR+12+Math.random()*(H-HOR-24),p:Math.random()*TAU,sp:Math.random()});
-const flutters=[]; for(let i=0;i<Math.round(4*LX);i++)flutters.push({x:20+rnd()*(W-40),y:HOR+8+rnd()*22,p:rnd()*TAU,sp:0.6+rnd()*0.8}); // monarchs, out on warm summer days
+const flutters=[]; for(let i=0;i<Math.round(4*LX);i++){const fx=20+rnd()*(W-40);flutters.push({x:fx,hx:fx,y:HOR+8+rnd()*22,p:rnd()*TAU,sp:0.6+rnd()*0.8});} // monarchs, out on warm summer days — each keeps a home patch (hx) spread across the field
 // a few head of cattle grazing the far hills, year-round — kept to clear stretches (west of the barn, and the gap east of the lot) so they never sit behind the town/windmill/fair/trees
 const hillCows=[
   {x:AX(18),lo:AX(5),hi:AX(30),y:HOR-8,d:1,p:rnd()*TAU,herf:false},
@@ -1580,7 +1580,11 @@ function update(dt){
     f.x+=Math.sin(f.p*0.6+f.sp*7)*10*vdt; f.y+=Math.cos(f.p*0.53+f.sp*5)*6*vdt;
     f.x=clamp(f.x,14,W-14); f.y=clamp(f.y,HOR+8,H-8);}
   for(const b of flutters){b.p+=vdt*(1.4+b.sp);                    // monarchs wander the field, unhurried
-    b.x+=(Math.cos(b.p*0.5)*7+wind*0.06)*vdt; b.y+=Math.sin(b.p*1.1)*6*vdt;
+    // each works its own home patch: a gentle spring home + a slow home meander. The old constant
+    // wind*0.06 drift was a one-way ratchet — over hours EVERY butterfly piled against the W-12
+    // clamp into one flapping knot. Wind now LEANS them downwind of home instead of herding them.
+    b.hx=clamp(b.hx+Math.sin(b.p*0.07)*2*vdt,20,W-36);              // home range stops short of the east edge, so lean+flutter can never reach the wall
+    b.x+=(Math.cos(b.p*0.5)*7+(b.hx-b.x)*0.06+wind*0.03)*vdt; b.y+=Math.sin(b.p*1.1)*6*vdt;
     b.x=clamp(b.x,12,W-12); b.y=clamp(b.y,HOR+4,H-42);}
   if(dl>0.35&&seasonIdx!==3&&weather<0.45){
     const fm=folk[0];

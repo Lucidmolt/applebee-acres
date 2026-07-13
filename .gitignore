@@ -21,3 +21,6 @@ evolve/auth.env
 # evolve loop runtime artifacts (logs + safety backups)
 evolve/*.log
 evolve/*.bak
+
+# Info-ZIP in-progress temp files (zi + 6 random chars) — a git add racing a running zip once swept one in
+windows-screensaver/zi??????
