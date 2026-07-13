@@ -175,7 +175,9 @@ function startDuckHunt(auto){
     cap:['#c8641c','#8a2f2a','#3a5a3a','#7a5a2a'][Math.random()*4|0]};
 }
 function shootDuck(mx,my){
-  const D=duckHunt; if(!D||D.ph==='out'||D.shots<=0)return;
+  const D=duckHunt; if(!D||D.ph==='out')return;
+  if(D.auto){D.auto=false;D.shots=Math.max(D.shots,5);D.t=Math.min(D.t,10);} // a human click takes the gun from the ambient hunter — fresh shells, the shell pips wake, the hunt is yours (Lively wallpaper forwards clicks, so this plays on the desktop)
+  if(D.shots<=0)return;
   D.shots--; D.flash=0.15; D.aimx=mx; D.aimy=my; D.dir=mx>D.x?1:-1;
   for(const k of D.ducks){
     if(k.alive&&Math.hypot(k.x-mx,k.y-my)<9){k.alive=false;k.fall=0.01;D.bag++;

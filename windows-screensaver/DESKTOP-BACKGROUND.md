@@ -77,6 +77,24 @@ Right-click the desktop → **View → uncheck "Show desktop icons."** (Re-check
 Good for a lobby/showroom machine that's mostly a display; skip it on a machine people actually
 work on.
 
+## 4½. The wallpaper is quietly interactive (clicks reach the farm)
+
+Lively forwards mouse input to web wallpapers by default (**Settings → Wallpaper → Interaction →
+Wallpaper Input = Mouse**). Clicks on desktop icons still hit the icons; clicks on **empty desktop**
+reach the farm:
+
+- **Duck hunts are playable.** When the hunter wanders on (he rolls himself ~45% of days at dawn or
+  dusk), **click a duck to take the gun from him** — he stops firing, your shells top up to 5, the
+  aiming reticle follows your cursor, and the hunt is yours. Hit radius is forgiving; downed ducks
+  tumble.
+- A click on the field **plants a sunflower** where it lands (they add up in the HUD ✿ counter).
+- ~5% of stray clicks summon the hunter for a fresh hunt.
+
+If a machine should be a **pure display with no interaction** (e.g. a store PC where misclicks
+would confuse people), turn it off in Lively: Settings → Wallpaper → Interaction → **Wallpaper
+Input → off**. The ambient hunt still plays by itself; clicks just stop reaching the farm.
+Note: some setups need one click to focus the desktop before clicks register on the wallpaper.
+
 ## 5. Heads-up: the "Keating catches fire" effect is ON
 
 Because we use **`?saver=1`**, the wallpaper behaves exactly like the store screensaver: if the
