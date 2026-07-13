@@ -1771,11 +1771,22 @@ function hillPath(base,amp,s1,s2,p1,p2){
   for(let x=0;x<=W;x+=4)g.lineTo(x,base-(Math.sin(x*s1+p1)*0.6+Math.sin(x*s2+p2)*0.4)*amp);
   g.lineTo(W,H);g.closePath();g.fill();
 }
-// the NEAR ridge's edge line, mirroring hillPath(HOR-13,9,0.013,0.031,1.7,4.0) exactly.
-// Anything "standing on the hills" must seat on THIS, not a fixed y: the wave swings ±9px
-// and its alignment against AX-scaled anchors shifts with screen width — a fixed baseline
-// floats over the dips at some aspects (Austin caught the town levitating on the live site).
-function hillEdgeY(x){return HOR-13-(Math.sin(x*0.013+1.7)*0.6+Math.sin(x*0.031+4.0)*0.4)*9;}
+// the NEAR ridge's edge line — the single source of truth for "standing on the hills".
+// Anything up there must seat on THIS, not a fixed y: the wave swings ±9px and its alignment
+// against AX-scaled anchors shifts with screen width — a fixed baseline floats over the dips
+// at some aspects (Austin caught the town levitating on the live site).
+// THE TOWN'S RISE: under the town core the ridge lifts into a gentle plateau, so the skyline
+// stands proud of the wave at EVERY width instead of riding it down into a hollow (Austin, on
+// his dual span: "the city buildings should always stand out in the distance"). The plateau
+// follows AX, so it tracks the town wherever the aspect puts it. The ridge FILL uses this same
+// function, so terrain and seating can never disagree.
+function hillEdgeY(x){
+  const w2=HOR-13-(Math.sin(x*0.013+1.7)*0.6+Math.sin(x*0.031+4.0)*0.4)*9;
+  const TX2=AX(124),lo=TX2-36,hi=TX2+66;
+  if(x<=lo||x>=hi)return w2;
+  const t9=Math.min(clamp((x-lo)/14,0,1),clamp((hi-x)/14,0,1)),ts=t9*t9*(3-2*t9);
+  return w2+(HOR-16.5-w2)*ts;
+}
 function tree(x,big){
   const s=(big?1:0.75)*(1+Math.min(0.25,yF*0.08));
   P(x-1,HOR-8*s,2,8*s,'#5a4632');
@@ -2449,7 +2460,7 @@ function drawTown(){
     const by=Math.max(seat+1,seat+2.5+(B.dy||0)); // base sunk into the hill; back-street lots (dy<0) sit a touch higher, but never above the edge
     const last=(i===townN-1&&townProg<1);
     const frac=last?(0.25+0.75*townProg):1;
-    const h=Math.max(1,Math.round(B.h*frac));
+    const h=Math.max(1,Math.round(B.h*1.25*frac)); // a prouder skyline — Austin: the city read too small (the rex still towers, as a rex should)
     const x=TX2+B.dx,y=by-h;
     const bcl=tint(i);
     g.fillStyle=bcl;
@@ -2488,7 +2499,7 @@ function drawTown(){
       g.fillStyle=bcl;
     }
     if(last&&frac<0.99){
-      const cx2=x+B.w+2,ct2=by-B.h-4,sw=Math.sin(rt*0.7)*1.5;
+      const cx2=x+B.w+2,ct2=by-B.h*1.25-4,sw=Math.sin(rt*0.7)*1.5; // crane clears the taller finished height
       g.strokeStyle=shA(C('#8a6a2e'),0.45);g.lineWidth=1;g.beginPath();
       g.moveTo(cx2,by);g.lineTo(cx2,ct2);
       g.moveTo(cx2-5,ct2);g.lineTo(cx2+4,ct2);
@@ -2838,7 +2849,11 @@ function draw(){
     }
   }
   g.fillStyle=shA(mixA(spal('hillFar'),SNOW,snowCover*0.85),0.6);
-  hillPath(HOR-13,9,0.013,0.031,1.7,4.0);
+  { // near ridge — drawn FROM hillEdgeY so the fill and everything seated on it always agree (incl. the town plateau)
+    g.beginPath();g.moveTo(0,H);
+    for(let x=0;x<=W;x+=4)g.lineTo(x,hillEdgeY(x));
+    g.lineTo(W,H);g.closePath();g.fill();
+  }
   drawTown();
   { // aerial haze — the far ridge and town bases melt toward the sky at the horizon line (classic depth cue; follows the golden grade + night like everything else)
     let ha=mixA(mixA(spal('hillFar'),C('#c6d2e0'),0.78),SNOW,snowCover*0.5);
