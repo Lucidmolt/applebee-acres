@@ -88,6 +88,7 @@ let hawk=null,hawkAt=-1;     // a red-tail rides a thermal over the field on cle
 let pheasant=null,pheasantAt=-1; // a rooster pheasant works the field edge, flushes when the dog/traffic comes near
 let cattle=null,cattleAt=-1; // a small herd grazes the STUBBLE field (autumn/winter) and drifts across; spooks off if a machine works the field
 let cowUfo=null,cowUfoAt=-1; // the OTHER ufo: rare mid-day saucer over the far hills lifts a hill cow — she's returned to her patch a few minutes later, none the wiser
+let kaiju=null,kaijuAt=-1;   // rarer still: a giant prairie lizard rises behind the ridge and eyes the town — helicopters buzz him off before he gets anywhere near it (generic kaiju on purpose: it's a business display, not a Toho license)
 const EPOCH=new Date(2026,6,6).getTime(); // town founding week
 // the data-center fight: surveyed, protested, and beaten (days since EPOCH)
 const SAGA={survey:[45,75],signs:[70,340],protests:[80,152,290],won:330};
@@ -218,6 +219,9 @@ function drawHunter(D){
   if(!D.auto)for(let i=0;i<5;i++){g.fillStyle=i<D.shots?'#e8b13c':S('#4a4030',0.6);g.fillRect(x-4+i*2,y-12,1,2.2); // shell pips only in the interactive game — the ambient one stays clean
     if(i<D.shots){g.fillStyle='#c04a2a';g.fillRect(x-4+i*2,y-12,1,0.7);}}
   for(let i=0;i<Math.min(D.bag,5);i++){g.fillStyle=S('#33333c',0.6);g.fillRect(x-3+i*2,y-0.5,1.6,1);}
+}
+function startKaiju(){ // the lizard surfaces east of town and considers his options
+  kaiju={t:0,x:AX(196),tx:AX(154),up:0};
 }
 function startCowUfo(){ // the mid-day abduction: pick a cow that's out grazing and send the saucer for her
   const avail=hillCows.filter(hc=>!hc.gone&&!hc.abd);
@@ -615,6 +619,7 @@ function onNewDay(){
   pheasantAt=(Math.random()<0.35&&seasonIdx!==3)?0.25+Math.random()*0.06:-1; // a pheasant at first light
   cattleAt=(((seasonIdx===2&&seasonT>0.45)||seasonIdx===3)&&Math.random()<0.35)?0.34+Math.random()*0.26:-1; // cattle graze the stubble field
   cowUfoAt=(Math.random()<0.02)?0.42+Math.random()*0.16:-1; // ~2% of days (asteroid-rare): a mid-day cattle abduction over the hills, 10am-2pm window
+  kaijuAt=(Math.random()<0.02)?0.58+Math.random()*0.14:-1;  // ~2% of days: the lizard eyes the town some afternoon, 2-5pm window
 
   trainAt=[Math.random()];
   if(Math.random()<0.6)trainAt.push(Math.random());
@@ -633,7 +638,7 @@ function onNewDay(){
   {const np=4+(Math.random()*3|0);
    for(let i=0;i<np;i++)planeOps.push({at:0.27+Math.random()*0.6,land:Math.random()<0.5});
    planeOps.sort((a2,b2)=>a2.at-b2.at);}
-  famCar=null;yardPlay=null;ball=null;bikeRide=null;svcDrop=null;bayOut=null;tourCust=null;duckHunt=null;cowUfo=null; // yesterday's scenes never leak into today
+  famCar=null;yardPlay=null;ball=null;bikeRide=null;svcDrop=null;bayOut=null;tourCust=null;duckHunt=null;cowUfo=null;kaiju=null; // yesterday's scenes never leak into today
   for(const hc of hillCows){hc.gone=false;hc.abd=false;hc.abdY=0;} // and no cow stays beamed-up across a day boundary
   // family & dealership personality rolls
   cropWalk=seasonIdx!==3&&Math.random()<0.3;
@@ -662,6 +667,7 @@ function onNewDay(){
   if(pheasantAt>0&&tod>pheasantAt+0.05)pheasantAt=-1;
   if(cattleAt>0&&tod>cattleAt+0.05)cattleAt=-1;
   if(cowUfoAt>0&&tod>cowUfoAt+0.06)cowUfoAt=-1;
+  if(kaijuAt>0&&tod>kaijuAt+0.06)kaijuAt=-1;
   if(bayAt>0&&tod>bayAt+0.05)bayAt=-1;
   if(svcAt>0&&tod>svcAt+0.05)svcAt=-1;
   if(weldAt>0&&tod>weldAt+0.05)weldAt=-1;
@@ -683,6 +689,7 @@ function onNewDay(){
   if(pheasantAt>0)pheasantAt=spread(pheasantAt);
   if(cattleAt>0)cattleAt=spread(cattleAt);
   if(cowUfoAt>0)cowUfoAt=spread(cowUfoAt);
+  if(kaijuAt>0)kaijuAt=spread(kaijuAt);
   dropTimes=dropTimes.map(spread);
   if(bayAt>0)bayAt=spread(bayAt);
   if(svcAt>0)svcAt=spread(svcAt);
@@ -700,7 +707,7 @@ function onSeason(s){ // natural transitions in sim mode
 function synthSeason(s){ // rebuild plausible state for an arbitrary calendar moment
   bales=[];baleC=0;drops=[];flakes=[];leaves=[];weather=Math.min(weather,0.2);
   fire=null;duster=null;devil=null;tumbles=[];spray=[];rainbowT=0;
-  train=null;sale=null;balloon=null;jet=null;deer=null;rabbit=null;rabbitAt=-1;hawk=null;hawkAt=-1;pheasant=null;pheasantAt=-1;cattle=null;cattleAt=-1;ufo=null;cowUfo=null;cowUfoAt=-1;hillCows.forEach(hc=>{hc.gone=false;hc.abd=false;hc.abdY=0;});snowman=null;fw=[];fwDemo=0;fogT=0;
+  train=null;sale=null;balloon=null;jet=null;deer=null;rabbit=null;rabbitAt=-1;hawk=null;hawkAt=-1;pheasant=null;pheasantAt=-1;cattle=null;cattleAt=-1;ufo=null;cowUfo=null;cowUfoAt=-1;kaiju=null;kaijuAt=-1;hillCows.forEach(hc=>{hc.gone=false;hc.abd=false;hc.abdY=0;});snowman=null;fw=[];fwDemo=0;fogT=0;
   satS=null;rocketS=null;meteors=[];showerT=0;auroraT=0;eclDemo=0;
   asteroid=null;crater=null;debris=[];combine=null;sprayer=null;unld=null;
   vfwLot=[];vfwDaily();
@@ -738,7 +745,7 @@ function jumpSeason(k){
   lastDay=Math.floor(day); lastSeason=seasonIdx;
   weather=0;rainyDay=false;flashT=0;drops=[];flakes=[];leaves=[];birds=[];
   fire=null;art=null;duster=null;devil=null;tumbles=[];spray=[];rainbowT=0;
-  train=null;sale=null;balloon=null;jet=null;deer=null;rabbit=null;rabbitAt=-1;hawk=null;hawkAt=-1;pheasant=null;pheasantAt=-1;cattle=null;cattleAt=-1;ufo=null;cowUfo=null;cowUfoAt=-1;hillCows.forEach(hc=>{hc.gone=false;hc.abd=false;hc.abdY=0;});snowman=null;fw=[];fwDemo=0;fogT=0;
+  train=null;sale=null;balloon=null;jet=null;deer=null;rabbit=null;rabbitAt=-1;hawk=null;hawkAt=-1;pheasant=null;pheasantAt=-1;cattle=null;cattleAt=-1;ufo=null;cowUfo=null;cowUfoAt=-1;kaiju=null;kaijuAt=-1;hillCows.forEach(hc=>{hc.gone=false;hc.abd=false;hc.abdY=0;});snowman=null;fw=[];fwDemo=0;fogT=0;
   satS=null;rocketS=null;meteors=[];showerT=0;auroraT=0;eclDemo=0;planStrange();
   asteroid=null;crater=null;debris=[];combine=null;sprayer=null;unld=null;
   vfwLot=[];vfwDaily();
@@ -776,6 +783,7 @@ addEventListener('keydown',e=>{
   else if(e.key==='P'){if(!pheasant){const pd=Math.random()<0.5?1:-1;pheasant={x:pd>0?BARNX+18:DX-26,y:HOR+4,dir:pd,t:0,ph:'walk',pk:0,vy:0,tx:0};pheasant.tx=clamp(pheasant.x+pd*30,BARNX+14,DX-22);}} // demo: pheasant
   else if(e.key==='C'){if(!cattle){const cd=Math.random()<0.5?1:-1,arr=[];for(let i=0;i<4;i++)arr.push({x:Math.round(W*0.28+i*W*0.13),row:1+(i%3),tail:i*1.7,herf:i===1,calf:i===3});cattle={arr,dir:cd,spook:false};}} // demo: cattle herd, dropped mid-field for an instant look
   else if(e.key==='U'){if(!cowUfo)startCowUfo();} // demo: the mid-day cattle abduction (needs a visible hill cow, so daytime only)
+  else if(e.key==='G'){if(!kaiju)startKaiju();}   // demo: the giant prairie lizard eyes the town, helicopters object
   else if(e.key==='m'){if(!snowman)snowman={b:1};}
   else if(e.key==='w')fwDemo=18;
   else if(e.key==='u'){if(!ufo)ufo={x:60+Math.random()*(W-120),y:-12,ph:0,t:0};}
@@ -1018,6 +1026,7 @@ function update(dt){
   // a small herd grazes the harvested field and drifts across (~15 min); a machine working the field spooks them off
   if(cattleAt>0&&tod>cattleAt+0.05)cattleAt=-1;
   if(cowUfoAt>0&&tod>cowUfoAt+0.06)cowUfoAt=-1;
+  if(kaijuAt>0&&tod>kaijuAt+0.06)kaijuAt=-1;
   const fieldClear=!combine&&!tract.task&&!fire;
   const stubbleField=phase==='stubble'||phase==='dormant';
   if(!cattle&&cattleAt>0&&tod>cattleAt&&stubbleField&&fieldClear&&weather<0.5){
@@ -1058,7 +1067,7 @@ function update(dt){
     if(c.x<c.lo){c.x=c.lo;c.d=1;} else if(c.x>c.hi){c.x=c.hi;c.d=-1;}
   }
   // the OTHER ufo: a rare mid-day saucer works the hills — slides in, beams a cow up, and is gone
-  if(!cowUfo&&cowUfoAt>0&&tod>cowUfoAt&&tod<cowUfoAt+0.06&&dl>0.5&&weather<0.55&&snowCover<0.6&&!plane&&!jet&&!balloon&&!hawk){cowUfoAt=-1;startCowUfo();}
+  if(!cowUfo&&cowUfoAt>0&&tod>cowUfoAt&&tod<cowUfoAt+0.06&&dl>0.5&&weather<0.55&&snowCover<0.6&&!plane&&!jet&&!balloon&&!hawk&&!kaiju){cowUfoAt=-1;startCowUfo();}
   if(cowUfo){
     const u=cowUfo,c5=u.cow;
     if(u.ph==='in'){const d6=Math.sign(c5.x-u.x)||1;u.x+=d6*46*vdt;
@@ -1068,6 +1077,16 @@ function update(dt){
       if(c5.abdY>=26){c5.gone=true;c5.abd=false;c5.abdY=0;c5.backT=120+Math.random()*180;u.ph='out';u.t=0;u.vx=(u.x<W/2?-1:1)*30;}}
     else{u.t+=vdt;u.vx*=1+2.4*vdt;u.x+=u.vx*vdt;u.y-=10*vdt;          // zips away climbing
       if(u.x<-30||u.x>W+30||u.t>6)cowUfo=null;}
+  }
+  // the giant prairie lizard: rises behind the ridge, eyes the town, gets buzzed off by helicopters
+  if(!kaiju&&kaijuAt>0&&tod>kaijuAt&&tod<kaijuAt+0.06&&dl>0.35&&weather<0.55&&!plane&&!jet&&!balloon&&!hawk&&!cowUfo){kaijuAt=-1;startKaiju();}
+  if(kaiju){
+    const k=kaiju;k.t+=vdt;
+    const rise=clamp(k.t/2.5,0,1),sink=clamp((k.t-17.5)/2.5,0,1);
+    k.up=rise*(1-sink);                                              // 0 -> looming -> back down behind the ridge
+    if(k.t>2.5&&k.t<12){if(Math.abs(k.tx-k.x)>1)k.x+=Math.sign(k.tx-k.x)*4.4*vdt;} // advances on the town, unhurried
+    else if(k.t>=13&&k.t<17.5)k.x+=9*vdt;                            // thinks better of it — the escort herds him east
+    if(k.t>24)kaiju=null;
   }
   // snowman
   if(!snowman&&snowCover>0.55&&dl>0.5&&vdt>0&&Math.random()<0.0004)snowman={b:0.01};
@@ -2762,6 +2781,53 @@ function draw(){
   // hills (a hazier third ridge sits far behind)
   g.fillStyle=shA(mixA(mixA(spal('hillFar'),C('#b9c6d6'),0.5),SNOW,snowCover*0.85),0.5);
   hillPath(HOR-18,7,0.010,0.026,3.4,0.9);
+  // the giant prairie lizard — drawn BETWEEN the ridges, so the near hill hides his legs and
+  // the town (drawn later, in front) can never actually be touched. He looms, he does not land.
+  if(kaiju&&kaiju.up>0.02){
+    const k=kaiju,sw=Math.sin(rt*0.9)*0.9,kx=k.x+sw,yb=HOR-8;
+    const h=19*k.up,top=yb-h;
+    const roar=((k.t>6&&k.t<7.5)||(k.t>10&&k.t<11.5))?1:0;
+    const D=k.t<12.5?-1:1;                                   // faces the town on approach, turns away when herded off
+    g.fillStyle=S('#46543f',0.55);
+    g.fillRect(kx-4.65,top+4,9.3,Math.max(0,h-4));           // torso, shoulders above the ridge
+    g.fillRect(kx+D*4.6-1.5,top+9.5,3,2.4);                  // stubby near arm
+    g.fillRect(kx-D*5.2-1.2,top+6.5,2.4,7);                  // thick tail base rising behind
+    g.fillRect(kx-D*7,top+4.5+Math.sin(rt*1.3)*0.8,2,3);     // tail tip, swaying
+    const hy0=top+(roar?-0.8:0);                             // head lifts to bellow
+    g.fillRect(kx+D*2.6-3,hy0,6,3.6);                        // head
+    g.fillRect(kx+D*2.6-3.4,hy0-0.7,6.8,1);                  // brow ledge
+    g.fillRect(kx+D*4.4-2,hy0+2.6+(roar?1.5:0.2),4.6,1.3);   // jaw — drops open in the roar
+    g.fillStyle=S('#5d6b52',0.5);
+    g.fillRect(kx-3.4,top+7,2.2,Math.max(0,h-8));            // belly tone
+    g.fillStyle='#d8c060';g.fillRect(kx+D*4.2,hy0+1,0.9,0.9);// eye
+    g.fillStyle=S('#39463a',0.55);                           // dorsal plates down the spine
+    for(let i2=0;i2<3;i2++){const px=kx-D*(1+i2*1.9),py=top+3+i2*3.6,s2=3.4-i2*0.7;
+      g.beginPath();g.moveTo(px-s2*0.7,py+s2);g.lineTo(px,py-s2*0.6);g.lineTo(px+s2*0.7,py+s2);g.closePath();g.fill();}
+    if(roar&&((rt*8|0)%2)){                                  // visible bellow — sound arcs off the jaw
+      g.strokeStyle='rgba(255,244,214,0.5)';g.lineWidth=1;
+      g.beginPath();g.arc(kx+D*7.5,hy0+2.4,2.5,D>0?-0.7:Math.PI-0.7,D>0?0.7:Math.PI+0.7);g.stroke();
+      g.beginPath();g.arc(kx+D*7.5,hy0+2.4,4.2,D>0?-0.55:Math.PI-0.55,D>0?0.55:Math.PI+0.55);g.stroke();
+    }
+    for(let i2=0;i2<3;i2++){                                 // the escort: three army-green helicopters, in from the east
+      const en=8+i2*0.7; if(k.t<en)continue;
+      const a2=clamp((k.t-en)/3,0,1),ea=a2*a2*(3-2*a2);      // ease in to their hover slots
+      const ex=clamp((k.t-(18+i2*0.5))/3.5,0,1);             // then peel off east
+      const hoX=[-16,4,19][i2],hoY=[-7,-11,-4][i2];
+      const bx=kx+95+i2*14+(hoX-95-i2*14)*ea+ex*ex*150;
+      const by=HOR-33+hoY+Math.sin(rt*2.3+i2*2)*0.9;
+      const f=ex>0.01?1:-1;                                  // face the lizard on station, face east leaving
+      g.fillStyle=S('#4a4e3a',0.55);
+      g.fillRect(bx-2.65,by-0.85,5.3,1.7);                   // fuselage
+      g.fillRect(f>0?bx-2.65-3.2:bx+2.65,by-0.5,3.2,0.6);    // tail boom, trailing
+      const tx9=f>0?bx-5.6:bx+5.6;
+      if(((rt*20|0)+i2)%2)g.fillRect(tx9-0.3,by-1.1,0.6,1.6);// tail rotor flicker
+      g.fillStyle=S('#93a3ad',0.5);g.fillRect(bx+f*1.1,by-0.6,1.2,0.8); // canopy glass
+      g.fillStyle=S('#353a2c',0.55);g.fillRect(bx-1.9,by+1.05,3.8,0.35); // skids
+      const rw=7.5*Math.abs(Math.sin(rt*26+i2*2.1));         // main rotor blur
+      g.globalAlpha=0.55;g.fillStyle=S('#2c3026',0.5);g.fillRect(bx-rw/2,by-1.95,rw,0.45);g.globalAlpha=1;
+      g.fillRect(bx-0.4,by-1.6,0.8,0.8);                     // rotor hub
+    }
+  }
   g.fillStyle=shA(mixA(spal('hillFar'),SNOW,snowCover*0.85),0.6);
   hillPath(HOR-13,9,0.013,0.031,1.7,4.0);
   drawTown();
