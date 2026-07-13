@@ -28,8 +28,13 @@ Write-Host 'Applebee Acres - live desktop wallpaper (Lively) setup' -ForegroundC
 Write-Host ''
 
 # --- 1. Ensure Lively Wallpaper is installed ---------------------------------
+# NOTE: --accept-source-agreements is REQUIRED here. On a machine where winget has
+# never run, a bare `winget list` stops to ask for source-terms acceptance — and with
+# the output piped, that prompt is INVISIBLE and the script hangs forever (hit on
+# Austin's PC, 2026-07-13).
+Write-Host 'Checking for Lively Wallpaper... (winget can take a minute on first run)'
 $installed = $false
-try { if (winget list --id $Pkg -e 2>$null | Select-String -SimpleMatch $Pkg) { $installed = $true } } catch {}
+try { if (winget list --id $Pkg -e --accept-source-agreements 2>$null | Select-String -SimpleMatch $Pkg) { $installed = $true } } catch {}
 if ($installed) {
   Write-Host 'Lively Wallpaper already installed.'
 } else {
