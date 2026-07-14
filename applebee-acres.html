@@ -9,7 +9,7 @@
   canvas{display:block;width:100vw;height:100vh;height:100dvh;object-fit:contain;image-rendering:pixelated;image-rendering:crisp-edges;touch-action:manipulation}
   .ui{position:fixed;bottom:12px;font:12px ui-monospace,"SF Mono",Menlo,monospace;color:#cfd2b8;
     text-shadow:0 1px 2px #000;user-select:none;pointer-events:none;transition:opacity .3s}
-  #hud{left:14px;opacity:.85;font-size:14px}
+  #hud{left:14px;opacity:.9;font-size:clamp(15px,1.2vw,26px);white-space:nowrap} /* scales with the display: ~23px on a 1080p desktop, capped on wide spans, floored on phones — a fixed px was always too small on real monitors */
   #hint{right:14px;opacity:.5;text-align:right}
   body.hideui .ui{opacity:0}
   @media (max-width:600px){#hint{display:none}}
