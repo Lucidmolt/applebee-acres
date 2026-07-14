@@ -322,7 +322,7 @@ function dogPlan(){
     if(t4.x>TREES[0].x&&t4.x<DX-10)
       return{vis:true,tx:clamp(t4.x-4,TREES[0].x+4,DX-16),y:126};
   }
-  if(dl>0.35&&weather<0.4&&seasonIdx!==3)return{vis:true,enter:BARNX-4,tx:BARNX-8,y:126,nap:true}; // Boone's own spot: the shade of the barn's WEST wall — the old BARNX+40 had him sandwiched between the parked tractor and the Hustler, in hen traffic (the July audit flagged it; never applied until Austin asked)
+  if(dl>0.35&&weather<0.4&&seasonIdx!==3)return{vis:true,enter:HX+12,tx:HX+14,y:126,nap:true}; // Boone's spot: the front-yard grass right by the house door — well clear of the parked tractor (out at HX-22), and hens get routed around a napping dog (see the wander deflect below)
   return{vis:false};
 }
 function drawHat(f,x,hy,D){
@@ -1654,6 +1654,7 @@ function update(dt){
         let t8=fld?BARNX-4+Math.random()*72:BARNX+4+Math.random()*58;
         if(Math.abs(t8-PARK.x)<13)t8=t8<PARK.x?PARK.x-13-Math.random()*5:PARK.x+13+Math.random()*5; // never under the parked tractor
         if(!fld&&t8<BARNX+11)t8=BARNX+11+Math.random()*8;              // and never in the round-bale stack
+        if(!fld&&dog.vis&&dog.nap&&Math.abs(t8-dog.x)<7)t8=dog.x-8-Math.random()*4; // and give a napping Boone his patch of grass — he beds at the east edge of their range, so push them west
         c.tx=t8;c.ty=fld?131+Math.random()*6:c.hy;
       }
       const dx=c.tx-c.x,dy9=c.ty-c.y;
