@@ -322,7 +322,7 @@ function dogPlan(){
     if(t4.x>TREES[0].x&&t4.x<DX-10)
       return{vis:true,tx:clamp(t4.x-4,TREES[0].x+4,DX-16),y:126};
   }
-  if(dl>0.35&&weather<0.4&&seasonIdx!==3)return{vis:true,enter:BARNX+38,tx:BARNX+40,y:126,nap:true};
+  if(dl>0.35&&weather<0.4&&seasonIdx!==3)return{vis:true,enter:BARNX-4,tx:BARNX-8,y:126,nap:true}; // Boone's own spot: the shade of the barn's WEST wall — the old BARNX+40 had him sandwiched between the parked tractor and the Hustler, in hen traffic (the July audit flagged it; never applied until Austin asked)
   return{vis:false};
 }
 function drawHat(f,x,hy,D){
