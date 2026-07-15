@@ -4,7 +4,7 @@ rigorously, ship it locally, log it, then stop. This is a calm dealership displa
 and unhurried; subtlety is the entire aesthetic. Do less, better.
 
 ## Read first (both, fully)
-1. /Users/lucid/.claude/projects/-Users-lucid-Creative/memory/project-applebee-acres.md
+1. /Users/lucid/.claude/projects/-Users-lucid-Creative-applebee-acres/memory/project-applebee-acres.md
    — full history, code conventions, and Austin's taste rulings. Obey every "do not re-add" / taste note.
 2. /Users/lucid/Creative/applebee-acres/evolve/BACKLOG.md
    — your operating rules, the idea backlog, and the changelog of past runs. Never repeat or undo a run.
