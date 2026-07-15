@@ -20,7 +20,7 @@ Pick ONE auth path:
 claude setup-token        # one-time, opens a browser; stores a long-lived token
 ```
 
-**B. Use a pay-as-you-go API key:** create `~/Creative/evolve/auth.env` containing:
+**B. Use a pay-as-you-go API key:** create `~/Creative/applebee-acres/evolve/auth.env` containing:
 ```
 export ANTHROPIC_API_KEY="sk-ant-..."
 # if your key must route through your gateway, also:  export ANTHROPIC_BASE_URL="https://your-gateway/..."
@@ -33,19 +33,19 @@ launchctl load -w ~/Library/LaunchAgents/com.applebeeacres.evolve.plist
 
 Optional immediate test (runs one real change now; watch it work):
 ```
-bash ~/Creative/evolve/evolve.sh; tail -40 ~/Creative/evolve/evolve.log
+bash ~/Creative/applebee-acres/evolve/evolve.sh; tail -40 ~/Creative/applebee-acres/evolve/evolve.log
 ```
 
 ## Control it
 - Pause:   `launchctl unload ~/Library/LaunchAgents/com.applebeeacres.evolve.plist`
 - Resume:  `launchctl load -w ~/Library/LaunchAgents/com.applebeeacres.evolve.plist`
-- Watch:   `tail -f ~/Creative/evolve/evolve.log`   ·   review changes in `BACKLOG.md`'s Changelog
+- Watch:   `tail -f ~/Creative/applebee-acres/evolve/evolve.log`   ·   review changes in `BACKLOG.md`'s Changelog
 
 ## Safety rails (already built in)
 - Smoke test gates every ship; if the source ends up red, the runner restores a pre-run backup — a bad
   change can't stick.
 - Budget-capped (~$2.50/run) and runs on Sonnet 5 to keep a 5×/day loop affordable.
-- Scoped to `~/Creative` + the memory dir. It does NOT redeploy the public artifact and NEVER touches the
+- Scoped to `~/Creative/applebee-acres` + the memory dir. It does NOT redeploy the public artifact and NEVER touches the
   ~30 store machines (those stay on your manual install — so the fleet only changes when YOU choose to).
 - To sync the public artifact or push a good run to the store fleet, use an interactive Claude session.
 

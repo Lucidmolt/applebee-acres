@@ -16,7 +16,7 @@ runs: the operating rules, the idea backlog to draw from, and the log of what's 
   run with no ship. Never leave the source red; never ship red.
 - **Ship (only if green):** rebuild both savers, refresh the usb-kit + zip. Do NOT redeploy the public
   artifact (needs an interactive session) and NEVER touch the store machines, GPO, or anything outside
-  `~/Creative` + the memory dir. No destructive commands.
+  `~/Creative/applebee-acres` + the memory dir. No destructive commands.
 - **Log every run:** append a dated line to the Changelog below, and add a short note to the memory.
 
 ## Idea backlog (pick the best fit for the current season/state; add your own)
