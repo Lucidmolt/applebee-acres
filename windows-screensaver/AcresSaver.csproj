@@ -16,7 +16,7 @@
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <DebugType>none</DebugType>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
-    <Version>1.1</Version>
+    <Version>1.2</Version>
     <Product>Applebee Acres</Product>
     <Company>Keating Tractor &amp; Equipment</Company>
   </PropertyGroup>

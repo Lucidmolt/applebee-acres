@@ -2,7 +2,7 @@
 # Applebee Acres — autonomous evolve run. Invoked by launchd every 5h.
 # Makes ONE vetted, smoke-gated change to the pixel farm, then stops.
 set -u
-DIR="/Users/lucid/Creative"
+DIR="/Users/lucid/Creative/applebee-acres"
 EV="$DIR/evolve"
 LOG="$EV/evolve.log"
 export HOME="/Users/lucid"

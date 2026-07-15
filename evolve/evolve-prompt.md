@@ -6,7 +6,7 @@ and unhurried; subtlety is the entire aesthetic. Do less, better.
 ## Read first (both, fully)
 1. /Users/lucid/.claude/projects/-Users-lucid-Creative/memory/project-applebee-acres.md
    — full history, code conventions, and Austin's taste rulings. Obey every "do not re-add" / taste note.
-2. /Users/lucid/Creative/evolve/BACKLOG.md
+2. /Users/lucid/Creative/applebee-acres/evolve/BACKLOG.md
    — your operating rules, the idea backlog, and the changelog of past runs. Never repeat or undo a run.
 
 ## The one change
@@ -23,18 +23,18 @@ pixel-art look exactly. One change only.
 - Dealership events gated on Sundays. Keep it calm.
 
 ## Verify & ship — in this exact order
-1. `cd /Users/lucid/Creative/tests && node smoke.js` → MUST print `OK` and exit 0.
+1. `cd /Users/lucid/Creative/applebee-acres/tests && node smoke.js` → MUST print `OK` and exit 0.
    If RED: undo your edit so smoke is green again, then ABORT this run without shipping. Never ship red.
-2. If green: `cd /Users/lucid/Creative && ./screensaver/build.sh` then `./windows-screensaver/build.sh`
+2. If green: `cd /Users/lucid/Creative/applebee-acres && ./screensaver/build.sh` then `./windows-screensaver/build.sh`
    (use `set -o pipefail` in any chain).
 3. Refresh the kit: `cp windows-screensaver/ApplebeeAcres.scr windows-screensaver/usb-kit/` then
    `cd windows-screensaver && rm -f ApplebeeAcres-USB.zip && zip -r -X ApplebeeAcres-USB.zip usb-kit`.
 4. Do NOT redeploy the public artifact (an interactive session syncs it). Do NOT touch the store
-   machines, GPO, or anything outside /Users/lucid/Creative and the memory directory. No destructive
+   machines, GPO, or anything outside /Users/lucid/Creative/applebee-acres and the memory directory. No destructive
    commands, no deleting the user's files.
 
 ## Log — both
-- Append one dated line to the `## Changelog` in /Users/lucid/Creative/evolve/BACKLOG.md
+- Append one dated line to the `## Changelog` in /Users/lucid/Creative/applebee-acres/evolve/BACKLOG.md
   (date · what changed · smoke result). If you had good new ideas, add them to the backlog list.
 - Add a concise dated note to the project memory file, in the memory's style.
 

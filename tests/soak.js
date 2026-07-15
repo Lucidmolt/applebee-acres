@@ -1,6 +1,6 @@
 // Soak test: ~12 simulated years at x16, heap growth watched for leaks.
 const fs = require('fs');
-const html = fs.readFileSync('/Users/lucid/Creative/applebee-acres.html', 'utf8');
+const html = fs.readFileSync('/Users/lucid/Creative/applebee-acres/applebee-acres.html', 'utf8');
 const src = html.match(/<script>([\s\S]*)<\/script>/)[1];
 
 const handlers = { win: {}, cv: {} };

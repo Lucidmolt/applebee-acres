@@ -1,6 +1,6 @@
 // Headless smoke test for applebee-acres.html (live + sim modes)
 const fs = require('fs');
-const html = fs.readFileSync('/Users/lucid/Creative/applebee-acres.html', 'utf8');
+const html = fs.readFileSync('/Users/lucid/Creative/applebee-acres/applebee-acres.html', 'utf8');
 const m = html.match(/<script>([\s\S]*)<\/script>/);
 if (!m) { console.error('no script found'); process.exit(1); }
 const src = m[1];
