@@ -1374,9 +1374,14 @@ function update(dt){
   if(yardPlay&&yardPlay.ph==='play'){
     if(!ball&&Math.abs(folk[0].x-(YARDX-11))<4&&Math.abs(folk[3].x-(YARDX+11))<4)ball={from:YARDX-11,to:YARDX+11,t:0}; // first throw waits for both players
     if(ball){
-      ball.t+=vdt*0.9;
-      if(ball.t>=1){ball.t=0; const f0=ball.from; ball.from=ball.to; ball.to=f0;}
-      ball.x=lerp(ball.from,ball.to,ball.t); ball.y=124-Math.sin(ball.t*Math.PI)*10;
+      if(ball.hold>0){                                              // caught — rests in the catcher's hands a beat before the throw back
+        ball.hold-=vdt;
+        if(ball.hold<=0){const f0=ball.from; ball.from=ball.to; ball.to=f0; ball.t=0;} // wind up and return
+      }else{
+        ball.t+=vdt*0.45;                                           // a real throw arcs over ~2s, not a blink
+        if(ball.t>=1){ball.t=1; ball.hold=0.6+Math.random()*0.7;}   // reached the catcher — pause, then send it back
+        ball.x=lerp(ball.from,ball.to,ball.t); ball.y=124-Math.sin(ball.t*Math.PI)*10;
+      }
     }
     if(tod>yardPlay.until){yardPlay=null;ball=null;}
   }
