@@ -223,11 +223,12 @@ function drawHunter(D){
 function startKaiju(){ // surfaces WAY out east past the VFW and marches west on the open ridge — full profile the whole way (his first stage spot was hidden behind the Keating building, Austin barely saw him)
   kaiju={t:0,x:AX(320),tx:AX(235),up:0};
 }
-function startCowUfo(){ // the mid-day abduction: pick a cow that's out grazing and send the saucer for her
+function startCowUfo(near){ // the mid-day abduction: pick a cow that's out grazing and send the saucer for her
   const avail=hillCows.filter(hc=>!hc.gone&&!hc.abd);
   if(!avail.length||dl<=0.4||snowCover>=0.6)return;      // cows have to be visible for the gag to land
   const c=avail[(Math.random()*avail.length)|0];
-  cowUfo={cow:c,ph:'in',t:0,x:c.x<W/2?-16:W+16,y:HOR-34,vx:0};
+  const side=c.x<W/2?-1:1;                               // she comes in from the nearer edge
+  cowUfo={cow:c,ph:'in',t:0,x:near?c.x+side*44:(side<0?-16:W+16),y:HOR-34,vx:0}; // `near` = quick swoop for the exit send-off
 }
 function nudge(){ // guaranteed low-key liveliness while the saver runs
   const opts=[];
@@ -414,16 +415,15 @@ function drawDog(){
     g.fillRect(x-2+bobD*0.5,y-1,1,1);g.fillRect(x+1.5-bobD*0.5,y-1,1,1);
   }
 }
-// screensaver hosts route exit through this: very rarely the farm goes out with a bang
+// screensaver hosts route exit through this: sometimes the farm sees you out with a little spectacle
 function acresExit(){
-  if(asteroid)return; // impact in progress; the failsafe below will close us
-  const boom=Math.random()<0.02;
-  if(boom){
-    startAsteroid(()=>{try{window.chrome.webview.postMessage('exit');}catch(e4){}});
-    setTimeout(()=>{try{window.chrome.webview.postMessage('exit');}catch(e4){}},4200);
-  }else{
-    try{window.chrome.webview.postMessage('exit');}catch(e4){}
-  }
+  if(asteroid||cowUfo)return; // a send-off is already playing; its own timer will close us
+  const done=()=>{try{window.chrome.webview.postMessage('exit');}catch(e4){}};
+  // a daytime saucer snatches a hill cow on your way out — bails to a normal exit at night or if no cow's grazing
+  if(Math.random()<0.05){startCowUfo(true);if(cowUfo){setTimeout(done,5000);return;}}
+  // rarer still: the whole farm goes out with a bang
+  if(Math.random()<0.02){startAsteroid(done);setTimeout(done,4200);return;}
+  done();
 }
 if(typeof window!=='undefined')window.__acresExit=acresExit;
 
@@ -631,7 +631,7 @@ function onNewDay(){
   pheasantAt=(Math.random()<0.35&&seasonIdx!==3)?0.25+Math.random()*0.06:-1; // a pheasant at first light
   cattleAt=(((seasonIdx===2&&seasonT>0.45)||seasonIdx===3)&&Math.random()<0.35)?0.34+Math.random()*0.26:-1; // cattle graze the stubble field
   cowUfoAt=(Math.random()<0.02)?0.42+Math.random()*0.16:-1; // ~2% of days (asteroid-rare): a mid-day cattle abduction over the hills, 10am-2pm window
-  kaijuAt=(Math.random()<0.02)?0.58+Math.random()*0.14:-1;  // ~2% of days: the lizard eyes the town some afternoon, 2-5pm window
+  kaijuAt=(Math.random()<0.10)?0.58+Math.random()*0.14:-1;  // ~10% of days: the lizard eyes the town some afternoon, 2-5pm window
 
   trainAt=[Math.random()];
   if(Math.random()<0.6)trainAt.push(Math.random());
@@ -3649,7 +3649,7 @@ function draw(){
   { // heat shimmer on scorching afternoons — thin strips of the drawn scene wobble sideways over the far field (the same ≥97°F gate as the crop-fire risk)
     const scorch2=live?(wx&&wx.tempF>=97&&weather<0.2):(seasonIdx===1&&weather<0.12);
     if(scorch2&&dl>0.55&&fogT<=0)for(let i=0;i<4;i++){
-      const sy2=119+i*4,ox=Math.sin(rt*(5.5+i*0.9)+i*1.7)*0.5;
+      const sy2=119+i*4,ox=Math.sin(rt*(4.2+i*0.6)+i*1.7)*0.3; // gentler: smaller + slower ripple so the far field haze doesn't read as a screen-wide wobble
       g.drawImage(cv,0,sy2*SS,cv.width,2*SS,ox,sy2,W,2);
     }
   }
