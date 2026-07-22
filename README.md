@@ -9,12 +9,16 @@ A self-contained pixel-art farm diorama — a living screensaver for the **Keati
 - **`screensaver/`** — native macOS screensaver (`.saver`, WKWebView / Swift).
 - **`windows-screensaver/`** — Windows `.scr` (WinForms + WebView2, built with .NET 8) plus the USB install kit and a Group Policy deploy guide.
 - **`tests/`** — headless smoke test (full year + every event) and a 12-year soak/heap test.
+- **`docs/`** — [`ARCHITECTURE.md`](docs/ARCHITECTURE.md): how the event system, builds, and deploys work.
 
 ## Controls
 Click the field to plant sunflowers. `1`–`4` jump seasons · `-`/`=` speed · `L` back to live · `7`/`9` duck hunt · `h` hide the HUD.
 
 ## Weather
 Over https (like the live link) it fetches real conditions for Liberal, KS; offline or where the fetch is blocked, it quietly simulates its own weather.
+
+## Development
+`applebee-acres.html` is the source; `index.html` is a byte-identical copy (the Pages source) — edit the former, then `cp applebee-acres.html index.html`. Gate changes with `cd tests && node smoke.js`. Full architecture, event system, build/deploy, and gotchas: **[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)**.
 
 ---
 Built with [Claude Code](https://claude.com/claude-code).
