@@ -48,7 +48,7 @@ namespace ApplebeeAcres
 
     internal static class Program
     {
-        public const string Version = "1.2-diag";
+        public const string Version = "1.3-heal";
 
         [STAThread]
         private static void Main(string[] args)
@@ -133,7 +133,8 @@ namespace ApplebeeAcres
             EventHandler onDisplayChange = (s, e) =>
             {
                 SaverLog.Write("event: DisplaySettingsChanged");
-                (main as SaverForm)?.RequestHeal("DisplaySettingsChanged");
+                // heal every form — in the per-screen (non-span) case only `main` used to hear this
+                foreach (Form f in Application.OpenForms) (f as SaverForm)?.RequestHeal("DisplaySettingsChanged");
             };
             SystemEvents.DisplaySettingsChanged += onDisplayChange;
             try { Application.Run(main); }
@@ -200,15 +201,15 @@ namespace ApplebeeAcres
         {
             base.OnShown(e);
             Cursor.Hide();
-            // Event-independent self-heal: every ~1.5s, re-assert the correct spanning geometry and,
-            // if a display change was flagged, rebuild the page surface. Only the spanning form (the
-            // one that tears) needs it; it does nothing while geometry is stable, so no flicker.
-            if (_span)
-            {
-                _watch = new System.Windows.Forms.Timer { Interval = 1500 };
-                _watch.Tick += (s, ev) => Watchdog();
-                _watch.Start();
-            }
+            // Event-independent self-heal: every ~1.5s, re-assert the correct geometry and, if a
+            // display change was flagged, rebuild the page surface. It does nothing while geometry
+            // is stable, so no flicker. This used to run only on the spanning form, which meant
+            // RequestHeal() (ProcessFailed, display wake, DisplaySettingsChanged) set _needReload
+            // on single-monitor machines and NOTHING ever consumed it — they had no self-heal at
+            // all. Every form gets the watchdog now.
+            _watch = new System.Windows.Forms.Timer { Interval = 1500 };
+            _watch.Tick += (s, ev) => Watchdog();
+            _watch.Start();
         }
 
         // Log + flag a surface rebuild on the next watchdog tick (the actual reload runs on the UI
@@ -223,12 +224,18 @@ namespace ApplebeeAcres
         {
             try
             {
-                Rectangle union = Screen.AllScreens[0].Bounds;
-                foreach (Screen s in Screen.AllScreens) union = Rectangle.Union(union, s.Bounds);
-                if (union != Bounds)
+                // The spanning form owns every screen; a per-screen form owns only the one it sits on.
+                Rectangle target;
+                if (_span)
                 {
-                    SaverLog.Write($"watchdog: bounds drift {Bounds} -> {union}; re-applying");
-                    Bounds = union;                 // WebView2 is Dock.Fill, so it follows
+                    target = Screen.AllScreens[0].Bounds;
+                    foreach (Screen s in Screen.AllScreens) target = Rectangle.Union(target, s.Bounds);
+                }
+                else target = Screen.FromHandle(Handle).Bounds;
+                if (target != Bounds)
+                {
+                    SaverLog.Write($"watchdog: bounds drift {Bounds} -> {target}; re-applying");
+                    Bounds = target;                // WebView2 is Dock.Fill, so it follows
                     _needReload = true;
                 }
                 if (_needReload && _core != null && Environment.TickCount - _lastReloadTick > 5000)

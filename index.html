@@ -28,8 +28,23 @@ const H=216,HOR=118,TAU=Math.PI*2,LX=W/384;
 const AX=x=>Math.round(x*LX); // landmark anchor scaler
 const cv=document.getElementById('s'),g=cv.getContext('2d');
 const SS=2; // 2× internal render: smoother motion & curves, same pixel-art look
-cv.width=W*SS;cv.height=H*SS;
-g.scale(SS,SS);
+// Re-assert the render surface (backing store + 2× transform) instead of setting it once at
+// boot. A GPU context loss — monitor sleep/wake, driver TDR, a display topology change: all
+// routine overnight on the dealership desktops — hands the canvas back with a fresh backing
+// store and an IDENTITY transform. The rAF loop keeps running (the HUD clock keeps ticking),
+// so without this the farm draws into the top-left quarter of the bitmap for the rest of the
+// night while the untouched three quarters keep whatever garbage the lost surface left behind.
+// That is the "shrunk into the top-left corner" tear. draw() calls this every frame, so any
+// reset self-heals in ~16ms instead of lasting until someone walks in.
+function fitSurface(){
+  if(cv.width!==W*SS||cv.height!==H*SS){cv.width=W*SS;cv.height=H*SS;} // backing store was discarded
+  g.setTransform(SS,0,0,SS,0,0);                                      // ...and its transform with it
+}
+fitSurface();
+// Chromium only restores a lost 2D context if the contextlost event is cancelled; the restored
+// surface comes back blank, and the next fitSurface()+draw() repaints it whole.
+cv.addEventListener('contextlost',e=>e.preventDefault());
+cv.addEventListener('contextrestored',fitSurface);
 const hud=document.getElementById('hud');
 if(typeof location!=='undefined'&&(location.host==='acres.local'||location.protocol==='file:'||location.protocol==='about:'||/saver/.test(location.search)))
   document.getElementById('hint').style.display='none'; // screensaver hosts drop the key help; the clock HUD stays
@@ -2635,6 +2650,7 @@ function skyCols(){
   return out;
 }
 function draw(){
+  fitSurface(); // every frame: survives a GPU context loss taking the 2× transform with it
   const shake=asteroid&&asteroid.t>1.05;
   if(shake){g.save();g.translate((Math.random()*4-2)|0,(Math.random()*3-1.5)|0);}
   // sky

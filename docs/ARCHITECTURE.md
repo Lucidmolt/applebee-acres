@@ -223,6 +223,19 @@ review and ship. (Seen failing auth — "Not logged in · run /login" — when t
   headless JS calls even though the code is fine. Force the visible state directly and
   screenshot, or test in a real foreground browser. **This is an environment artifact,
   not a farm bug.**
+- **Canvas 2D context state does not survive a GPU context loss.** The 2× render transform is
+  re-asserted every frame by `fitSurface()` — *never* just once at boot. On Windows a monitor
+  sleep/wake, a driver TDR or a display-topology change hands the canvas back with a fresh
+  backing store and an **identity** transform. The rAF loop keeps running (the HUD clock keeps
+  ticking, so the page looks perfectly alive), so the farm then redraws into the **top-left
+  quarter** of the bitmap for the rest of the night, the other three quarters keeping whatever
+  garbage the lost surface left behind — stretched over the whole display by `object-fit`.
+  *This was the "dual-monitor tear"*, and it was never really about dual monitors: it needs
+  only a GPU context loss, which is why exit-on-DisplaySettingsChanged and
+  exit-on-monitor-power-on both failed to cure it. Confirmed 2026-08-18 from a dealership
+  video (HUD clock matched the capture time to the minute → loop alive, geometry dead) and
+  reproduced exactly with `cv.width = cv.width`, which resets the context the same way.
+  Don't move the base transform back into boot-time setup.
 - **Two-file byte-sync** (§1) — the #1 way to ship a half-update.
 - **Push identity** (§5) — Lucidmolt vs CorruptFun 403.
 - **No copyrighted characters on the public display.** The "Godzilla" is a *generic
