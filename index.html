@@ -94,8 +94,8 @@ let live=true, wx=null, liveDate=new Date();
 let spi=2, paused=false, time=0.22*DAYLEN, rt=0;
 let day=0,tod=0,seasonIdx=0,seasonT=0,year=1,dl=1;
 let lastDay=0,lastSeason=0,lastDateStr='';
-let weather=0,rainyDay=false,rainS=0,rainE=0,snowCover=0,flashT=0,wind=6;
-let mAng=0,wheelAng=0,chimT=0,puffT=0;
+let weather=0,rainyDay=false,rainS=0,rainE=0,snowCover=0,flashT=0,wind=6,cloudCov=0.3;
+let mAng=0,wheelAng=0,chimT=0,puffT=0,coffeeT=0,coldOut=false,dealerLit=0,winLit=0,w2Lit=0,pLit=0; // dealerLit: KEATING sign glow; winLit/w2Lit: farmhouse bedroom-1/2 window glow; pLit: porch light glow — all eased 0..1 so they fade in/out instead of snapping
 let fire=null,fireRolled=-1,fireAt=0.55,art=null,duster=null,devil=null,tumbles=[],spray=[],rainbowT=0,prevW=0,cropKind=0;
 let train=null,trainAt=[],sale=null,saleAt=-1,lotStock=2,balloon=null,jet=null,deer=null,deerAt=-1,snowman=null,ufo=null,fw=[],fwNext=0,fwDemo=0,fogT=0,holiday=false,townN=1,townProg=0;
 let rabbit=null,rabbitAt=-1; // a cottontail out on the verge at first light
@@ -104,6 +104,7 @@ let pheasant=null,pheasantAt=-1; // a rooster pheasant works the field edge, flu
 let cattle=null,cattleAt=-1; // a small herd grazes the STUBBLE field (autumn/winter) and drifts across; spooks off if a machine works the field
 let cowUfo=null,cowUfoAt=-1; // the OTHER ufo: rare mid-day saucer over the far hills lifts a hill cow — she's returned to her patch a few minutes later, none the wiser
 let kaiju=null,kaijuAt=-1;   // rarer still: a giant prairie lizard rises behind the ridge and eyes the town — helicopters buzz him off before he gets anywhere near it (generic kaiju on purpose: it's a business display, not a Toho license)
+let mailTruck=null,mailAt=-1,mbFlag=false; // the mail carrier passes on weekday late mornings; the roadside mailbox flag goes up when she reaches it
 const EPOCH=new Date(2026,6,6).getTime(); // town founding week
 // the data-center fight: surveyed, protested, and beaten (days since EPOCH)
 const SAGA={survey:[45,75],signs:[70,340],protests:[80,152,290],won:330};
@@ -219,7 +220,8 @@ function drawDuck(k){
 function drawHunter(D){
   const x=D.x,y=D.y||126,dir=D.dir,aim=D.ph!=='out';
   shadow(x+0.5,y,2.2);
-  g.fillStyle=S('#3a4230',0.55);g.fillRect(x-1,y-3,1,3);g.fillRect(x+1,y-3,1,3);
+  const lsw=D.ph==='ready'?0:Math.sin(x*0.9)*0.4; // leg scissor keyed to ground covered, freezes while aiming — same idiom as drawWalker
+  g.fillStyle=S('#3a4230',0.55);g.fillRect(x-1+lsw,y-3,1,3);g.fillRect(x+1-lsw,y-3,1,3);
   g.fillStyle=S('#c8641c',0.58);g.fillRect(x-1,y-6,3,3);                     // blaze-orange vest
   g.fillStyle=S('#8a4a1a',0.6);g.fillRect(x-1,y-6,3,1);
   g.fillStyle=S('#c9a985',0.52);g.fillRect(x-0.5,y-8,2,2);
@@ -295,7 +297,8 @@ function folkPlan(f){
     if(famCar){if(famCar.ph==='board')return{vis:true,y:125,tx:famCar.x}; // walking out to the wagon
       if(famCar.ph!=='park')return{vis:false};}                      // she's driving the kids to town
     if(yardPlay)return{vis:true,y:125,tx:YARDX+2,sit:true};          // on the picnic blanket
-    if(tod<0.3||tod>0.9)return{vis:false};
+    if(tod<(seasonIdx<2?0.27:0.3)||tod>0.9)return{vis:false};
+    if(seasonIdx<2&&tod<0.30)return{vis:true,enter:HX-9,y:125,tx:HX-6,chore:'laundry'}; // pinning up the wash before the morning garden
     if(tod<0.40)return{vis:true,enter:HX+12,y:125,pa:HX+2,pb:HX+26};  // morning garden
     if(tod<0.42)return{vis:true,y:125,tx:HX+22,chore:'water'};        // watering the flowerbed
     if(tod<0.6)return{vis:false};
@@ -309,7 +312,7 @@ function folkPlan(f){
     if(yardPlay)return{vis:true,enter:HX+18,y:126,pa:YARDX-6,pb:YARDX+8};
     if(seasonIdx===3&&snowCover>0.8)return{vis:false};
     if(k2At>0&&tod>k2At&&tod<k2At+0.012&&weather<0.4&&snowCover<0.2)
-      return{vis:true,enter:HX+16,y:126,tx:HX-6,sit:true};            // crouched on the lawn, blowing dandelions
+      return{vis:true,enter:HX+20,y:126,tx:HX+27,sit:true};           // crouched on the lawn, blowing dandelions
     if(YRS<5&&tod>0.66&&tod<0.75&&folk[3].vis&&!bikeRide)return{vis:true,enter:HX+16,y:126,pa:TREES[0].x+18,pb:HX-2};
     return{vis:false};
   }
@@ -364,19 +367,21 @@ function drawFolk(f){
   const LH=small?2:3,TH=small?2:3;
   shadow(x+0.5,y,2.1);
   if(f.sit){
+    const br=Math.sin(rt*0.85+x*0.4)*0.15;              // slow breathing, same idiom as drawDog's nap
     g.fillStyle=S(f.pants,0.58);
     g.fillRect(x-0.5+D*0.8,y-1,2,1);
     g.fillRect(x-1,y-3,3,2);
-    g.fillStyle=S(f.shirt,0.58);g.fillRect(x-1,y-6,3,3);
-    g.fillStyle=S(f.shirt,0.75);g.fillRect(x+1,y-6,1,3);
-    g.fillStyle=S(f.skin,0.52);g.fillRect(x-0.5,y-8,2,2);
-    drawHat(f,x,y-8,D);
+    g.fillStyle=S(f.shirt,0.58);g.fillRect(x-1,y-6-br,3,3+br);
+    g.fillStyle=S(f.shirt,0.75);g.fillRect(x+1,y-6-br,1,3+br);
+    g.fillStyle=S(f.skin,0.52);g.fillRect(x-0.5,y-8-br,2,2);
+    drawHat(f,x,y-8-br,D);
     return;
   }
   const legTop=y-LH,tTop=legTop-TH-bob,hTop=tTop-2;
   if(f.id==='dot'){
     g.fillStyle=S(f.shirt,0.58);
-    g.fillRect(x-1.5,legTop,4,LH);                             // skirt
+    const skSw=Math.sin(rt*1.7+x*0.3)*Math.min(0.6,wind*0.02);
+    g.fillRect(x-1.5+skSw,legTop,4,LH);                        // skirt, catching the breeze
     g.fillStyle=S(f.pants,0.6);
     g.fillRect(x-0.5+t2,y-1,1,1);
     g.fillRect(x+0.6-t2,y-1,1,1);
@@ -426,7 +431,8 @@ function drawDog(){
     g.fillStyle=S('#6e5238',0.55);
     g.fillRect(x+(dog.dir>0?2.6:-3.2),y-4.6,0.7,0.8);
     g.fillStyle=S('#8a6a4a',0.55);
-    g.fillRect(x+(dog.dir>0?-3.2:2.5),y-4.2-(dog.greetT>0?((rt*8|0)%2)*0.6:0),0.8,1.8);
+    const tfD=Math.sin(rt*3.4+x*0.4)*0.35; // tail flick, same idiom as drawCow/hillCows/deer/rabbit/Gus
+    g.fillRect(x+(dog.dir>0?-3.2:2.5),y-4.2-(dog.greetT>0?((rt*8|0)%2)*0.6:0),0.8,1.8+tfD);
     g.fillRect(x-2+bobD*0.5,y-1,1,1);g.fillRect(x+1.5-bobD*0.5,y-1,1,1);
   }
 }
@@ -505,6 +511,7 @@ function clearField(t,gr){ cells=ROWY.map(()=>COLX.map(()=>({t:t||'none',g:gr||0
 clearField();
 
 const BARNX=AX(34), SILOX=BARNX+36, WMX=AX(252), HX=BARNX+49; // house sits with the barn & silo
+const MBX=HX+34; // the roadside mailbox, just past the yard fence corner toward the dealership
 const PARK={x:BARNX+27,y:127}; // parked against the barn's east wall — clear of the door, the silo, and the mower's lawn
 const YARDX=HX+2;                                     // the lawn out front, where the family gathers
 const DX=AX(142), DW=66, LOTX1=DX-8, LOTX2=DX+DW+8;   // dealership + lot footprint
@@ -537,8 +544,8 @@ const folk=[
 for(const f of folk){f.hold=0;f.wave=false;f.waved=false;} // arms start at rest, not undefined — waves fire from day one
 // Earl, Hal, Manny, Wade, Dot — and Boone the dog, Gus the barn cat
 const dog={x:0,tx:0,y:126,dir:1,vis:false,wasVis:false,nap:false,stepT:0,greetT:0};
-let cat={x:0,tx:0,vis:false,sit:0,dir:1},dogGreet=0,puddleT=0,halMannyT=0,porchT=0;
-let drops=[],flakes=[],smoke=[],leaves=[],birds=[],shoot=null;
+let cat={x:0,tx:0,vis:false,wasVis:false,sit:0,dir:1,pounce:0},dogGreet=0,puddleT=0,halMannyT=0,porchT=0;
+let drops=[],flakes=[],smoke=[],leaves=[],birds=[],shoot=null,splashes=[];
 const TREES=[{x:AX(14),big:1},{x:AX(336),big:1},{x:AX(355),big:0},{x:AX(370),big:1}];
 const BLO=[[-4,-10],[2,-14],[4,-8],[-1,-16],[-6,-7],[5,-12]];
 const TOWN=[ // horizon town, built one structure at a time over ~14 months
@@ -647,6 +654,9 @@ function onNewDay(){
   cattleAt=(((seasonIdx===2&&seasonT>0.45)||seasonIdx===3)&&Math.random()<0.35)?0.34+Math.random()*0.26:-1; // cattle graze the stubble field
   cowUfoAt=(Math.random()<0.02)?0.42+Math.random()*0.16:-1; // ~2% of days (asteroid-rare): a mid-day cattle abduction over the hills, 10am-2pm window
   kaijuAt=(Math.random()<0.10)?0.58+Math.random()*0.14:-1;  // ~10% of days: the lizard eyes the town some afternoon, 2-5pm window
+  {const wd6=live?liveDate.getDay():Math.floor(day)%7;
+   mailAt=(wd6>0&&wd6<6&&Math.random()<0.85)?0.36+Math.random()*0.2:-1;} // the mail carrier passes weekday late mornings
+  mbFlag=false;
 
   trainAt=[Math.random()];
   if(Math.random()<0.6)trainAt.push(Math.random());
@@ -665,7 +675,7 @@ function onNewDay(){
   {const np=4+(Math.random()*3|0);
    for(let i=0;i<np;i++)planeOps.push({at:0.27+Math.random()*0.6,land:Math.random()<0.5});
    planeOps.sort((a2,b2)=>a2.at-b2.at);}
-  famCar=null;yardPlay=null;ball=null;bikeRide=null;svcDrop=null;bayOut=null;tourCust=null;duckHunt=null;cowUfo=null;kaiju=null; // yesterday's scenes never leak into today
+  famCar=null;yardPlay=null;ball=null;bikeRide=null;svcDrop=null;bayOut=null;tourCust=null;duckHunt=null;cowUfo=null;kaiju=null;mailTruck=null; // yesterday's scenes never leak into today
   for(const hc of hillCows){hc.gone=false;hc.abd=false;hc.abdY=0;} // and no cow stays beamed-up across a day boundary
   // family & dealership personality rolls
   cropWalk=seasonIdx!==3&&Math.random()<0.3;
@@ -695,6 +705,7 @@ function onNewDay(){
   if(cattleAt>0&&tod>cattleAt+0.05)cattleAt=-1;
   if(cowUfoAt>0&&tod>cowUfoAt+0.06)cowUfoAt=-1;
   if(kaijuAt>0&&tod>kaijuAt+0.06)kaijuAt=-1;
+  if(mailAt>0&&tod>mailAt+0.06)mailAt=-1;
   if(bayAt>0&&tod>bayAt+0.05)bayAt=-1;
   if(svcAt>0&&tod>svcAt+0.05)svcAt=-1;
   if(weldAt>0&&tod>weldAt+0.05)weldAt=-1;
@@ -717,6 +728,7 @@ function onNewDay(){
   if(cattleAt>0)cattleAt=spread(cattleAt);
   if(cowUfoAt>0)cowUfoAt=spread(cowUfoAt);
   if(kaijuAt>0)kaijuAt=spread(kaijuAt);
+  if(mailAt>0)mailAt=spread(mailAt);
   dropTimes=dropTimes.map(spread);
   if(bayAt>0)bayAt=spread(bayAt);
   if(svcAt>0)svcAt=spread(svcAt);
@@ -732,7 +744,7 @@ function onSeason(s){ // natural transitions in sim mode
   else if(s===3){phase='dormant';tract.task=null;}
 }
 function synthSeason(s){ // rebuild plausible state for an arbitrary calendar moment
-  bales=[];baleC=0;drops=[];flakes=[];leaves=[];weather=Math.min(weather,0.2);
+  bales=[];baleC=0;drops=[];flakes=[];leaves=[];splashes=[];weather=Math.min(weather,0.2);cloudCov=Math.min(cloudCov,0.3);wind=6;
   fire=null;duster=null;devil=null;tumbles=[];spray=[];rainbowT=0;
   train=null;sale=null;balloon=null;jet=null;deer=null;rabbit=null;rabbitAt=-1;hawk=null;hawkAt=-1;pheasant=null;pheasantAt=-1;cattle=null;cattleAt=-1;ufo=null;cowUfo=null;cowUfoAt=-1;kaiju=null;kaijuAt=-1;hillCows.forEach(hc=>{hc.gone=false;hc.abd=false;hc.abdY=0;});snowman=null;fw=[];fwDemo=0;fogT=0;
   satS=null;rocketS=null;meteors=[];showerT=0;auroraT=0;eclDemo=0;
@@ -740,8 +752,8 @@ function synthSeason(s){ // rebuild plausible state for an arbitrary calendar mo
   vfwLot=[];vfwDaily();
   partsT=null;haulers=[];protest=null;
   empCars=[];visitors=[];visPlan=[];plane=null;planeOps=[];
-  barnO=0;bayO=0;famCar=null;famAt=-1;famAct='none';yardPlay=null;ball=null;bikeRide=null;
-  svcDrop=null;svcAt=-1;bayOut=null;bayAt=-1;weld=null;weldAt=-1;dropTimes=[];tourCust=null;cropWalk=false;duckHunt=null;huntAt=-1;
+  barnO=0;bayO=0;dealerLit=dl<0.45?1:0;winLit=(dl<0.5&&((tod>0.68+dayRng('l1')()*0.04&&tod<0.96)||(tod>0.2&&tod<0.3)))||(dayRng('wc')()<0.15&&tod>0.115&&tod<0.128)?1:0;w2Lit=dl<0.5&&(tod>0.7+dayRng('l2')()*0.06&&tod<0.9-dayRng('l3')()*0.05)?1:0;pLit=tod>0.755&&tod<0.9&&dl<0.5?1:0;famCar=null;famAt=-1;famAct='none';yardPlay=null;ball=null;bikeRide=null;
+  svcDrop=null;svcAt=-1;bayOut=null;bayAt=-1;weld=null;weldAt=-1;dropTimes=[];tourCust=null;cropWalk=false;duckHunt=null;huntAt=-1;mailTruck=null;mailAt=-1;mbFlag=false;
   tract.task=null;tract.x=PARK.x;tract.y=PARK.y;
   if(s===0){
     if(seasonT<0.2){clearField();phase='toPlant';tract.task={mode:'plant',row:0};tract.x=-16;tract.dir=1;}
@@ -770,7 +782,7 @@ function jumpSeason(k){
   const yr=Math.max(0,Math.floor(day/40));
   time=(yr*40+k*10+0.33)*DAYLEN; sync();
   lastDay=Math.floor(day); lastSeason=seasonIdx;
-  weather=0;rainyDay=false;flashT=0;drops=[];flakes=[];leaves=[];birds=[];
+  weather=0;rainyDay=false;flashT=0;cloudCov=0.3;wind=6;drops=[];flakes=[];leaves=[];birds=[];splashes=[];
   fire=null;art=null;duster=null;devil=null;tumbles=[];spray=[];rainbowT=0;
   train=null;sale=null;balloon=null;jet=null;deer=null;rabbit=null;rabbitAt=-1;hawk=null;hawkAt=-1;pheasant=null;pheasantAt=-1;cattle=null;cattleAt=-1;ufo=null;cowUfo=null;cowUfoAt=-1;kaiju=null;kaijuAt=-1;hillCows.forEach(hc=>{hc.gone=false;hc.abd=false;hc.abdY=0;});snowman=null;fw=[];fwDemo=0;fogT=0;
   satS=null;rocketS=null;meteors=[];showerT=0;auroraT=0;eclDemo=0;planStrange();
@@ -778,8 +790,8 @@ function jumpSeason(k){
   vfwLot=[];vfwDaily();
   partsT=null;haulers=[];protest=null;
   empCars=[];visitors=[];visPlan=[];plane=null;planeOps=[];
-  barnO=0;bayO=0;famCar=null;famAt=-1;famAct='none';yardPlay=null;ball=null;bikeRide=null;
-  svcDrop=null;svcAt=-1;bayOut=null;bayAt=-1;weld=null;weldAt=-1;dropTimes=[];tourCust=null;cropWalk=false;duckHunt=null;huntAt=-1;
+  barnO=0;bayO=0;dealerLit=dl<0.45?1:0;winLit=(dl<0.5&&((tod>0.68+dayRng('l1')()*0.04&&tod<0.96)||(tod>0.2&&tod<0.3)))||(dayRng('wc')()<0.15&&tod>0.115&&tod<0.128)?1:0;w2Lit=dl<0.5&&(tod>0.7+dayRng('l2')()*0.06&&tod<0.9-dayRng('l3')()*0.05)?1:0;pLit=tod>0.755&&tod<0.9&&dl<0.5?1:0;famCar=null;famAt=-1;famAct='none';yardPlay=null;ball=null;bikeRide=null;
+  svcDrop=null;svcAt=-1;bayOut=null;bayAt=-1;weld=null;weldAt=-1;dropTimes=[];tourCust=null;cropWalk=false;duckHunt=null;huntAt=-1;mailTruck=null;mailAt=-1;mbFlag=false;
   if(k===0){clearField();bales=[];baleC=0;phase='toPlant';tract.task={mode:'plant',row:0};tract.dir=1;tract.x=-16;}
   if(k===1){clearField('crop',0.5+Math.random()*0.15);phase='growing';tract.task=null;snowCover=0;
     for(const row of cells)for(const c of row)if(c.t==='crop')c.wd=Math.random()<0.06;}
@@ -895,9 +907,19 @@ function update(dt){
     wSnow=seasonIdx===3; wThun=seasonIdx!==3;
   }
   weather+=(wT-weather)*Math.min(1,vdt*(live?0.12:0.7));
-  wind=live&&wx?clamp(3+wx.windMph*0.8+Math.sin(rt*0.11)*2+weather*8,0,45)
-              :6+Math.sin(rt*0.11)*3+Math.sin(rt*0.037)*2+weather*20;
+  const cloudT=live&&wx?clamp(wx.cloud/100,0,1):clamp(0.3+weather*0.7,0,1);
+  cloudCov+=(cloudT-cloudCov)*Math.min(1,vdt*(live?0.15:0.7)); // smooths the 15-min live-feed poll so the sky never jump-cuts cloudiness
+  const windT=live&&wx?clamp(3+wx.windMph*0.8+Math.sin(rt*0.11)*2+weather*8,0,45)
+                      :6+Math.sin(rt*0.11)*3+Math.sin(rt*0.037)*2+weather*20;
+  wind+=(windT-wind)*Math.min(1,vdt*(live?0.15:0.7)); // same fix as cloudCov: smooths the 15-min windMph poll so flag/crop-wave/mill never jump-cut speed
   mAng+=(0.8+wind*0.13)*vdt;
+  dealerLit+=((dl<0.45?1:0)-dealerLit)*Math.min(1,vdt*0.2); // sign glow fades in over a few seconds at dusk instead of snapping to full brightness
+  const w1T=(dl<0.5&&((tod>0.68+dayRng('l1')()*0.04&&tod<0.96)||(tod>0.2&&tod<0.3)))||(dayRng('wc')()<0.15&&tod>0.115&&tod<0.128)?1:0; // mirrors l1On||l3am below, kept in sync
+  winLit+=(w1T-winLit)*Math.min(1,vdt*0.2); // same fix as dealerLit — the window's own glow now fades instead of popping on with the room light
+  const w2T=dl<0.5&&(tod>0.7+dayRng('l2')()*0.06&&tod<0.9-dayRng('l3')()*0.05)?1:0; // mirrors l2On below, kept in sync
+  w2Lit+=(w2T-w2Lit)*Math.min(1,vdt*0.2); // same fix as winLit — bedroom-2's glow now fades instead of popping on with the room light
+  const pT=tod>0.755&&tod<0.9&&dl<0.5?1:0; // mirrors the porch-light gate below, kept in sync
+  pLit+=(pT-pLit)*Math.min(1,vdt*0.2); // same fix as winLit/w2Lit — porch glow now fades instead of popping on
 
   if(wSnow&&weather>0.25)snowCover=Math.min(1,snowCover+vdt*(live?0.004:0.05));
   else{
@@ -1115,6 +1137,14 @@ function update(dt){
     else if(k.t>=16&&k.t<21)k.x+=11*vdt;                             // thinks better of it — the escort herds him east
     if(k.t>27)kaiju=null;
   }
+  // the mail carrier passes some weekday late mornings and stops at the roadside mailbox
+  if(!mailTruck&&mailAt>0&&tod>mailAt&&tod<mailAt+0.06){mailAt=-1;mailTruck={x:-16,ph:'in',t:0};}
+  if(mailTruck){
+    const mt=mailTruck;
+    if(mt.ph==='in'){mt.x+=28*vdt;if(mt.x>=MBX-2){mt.x=MBX-2;mt.ph='stop';mt.t=0;}}
+    else if(mt.ph==='stop'){mt.t+=vdt;if(mt.t>0.4)mbFlag=true;if(mt.t>1.6)mt.ph='out';}
+    else{mt.x+=28*vdt;if(mt.x>W+20)mailTruck=null;}
+  }
   // snowman
   if(!snowman&&snowCover>0.55&&dl>0.5&&vdt>0&&Math.random()<0.0004)snowman={b:0.01};
   if(snowman){
@@ -1207,6 +1237,8 @@ function update(dt){
     }
     if(p.st==='in'){
       p.x-=28*vdt;   // bikes & trucks drive in at the SAME speed so the rank-ordered queue never reshuffles — a nimbler bike used to overtake a truck ahead and clip it
+      if(p.kind!=='bike'&&vdt>0&&weather<0.35&&snowCover<0.2&&Math.random()<0.15) // dry gravel dust off a rolling truck, same idiom as the tractor's field plume
+        smoke.push({x:p.x+7,y:127,vx:2+Math.random(),vy:-1-Math.random(),life:0.7,max:0.7,c:'#c2ab84'});
       if(p.x<=sx5){p.x=sx5;p.st='walkin';p.wx=p.x;p.wt=0;}
     }else if(p.st==='walkin'){
       p.wx+=Math.sign(VFWX+1-p.wx)*7*vdt;p.wt+=vdt;
@@ -1219,6 +1251,8 @@ function update(dt){
       if(Math.abs(sx5-p.wx)<1.5)p.st=p.sleeper?'sleep':'go';
     }else if(p.st==='go'){
       p.x+=(p.toFarm?-1:1)*30*vdt;   // equal departure speed too, so two vehicles leaving the same way keep their spacing on the pull-out lane
+      if(p.kind!=='bike'&&vdt>0&&weather<0.35&&snowCover<0.2&&Math.random()<0.15)
+        smoke.push({x:p.x-(p.toFarm?-1:1)*7,y:127,vx:-(p.toFarm?-1:1)*2-Math.random(),vy:-1-Math.random(),life:0.7,max:0.7,c:'#c2ab84'});
       if(p.x<-30||p.x>W+30)p.st='done';
     }else if(p.st==='sleep'){
       if(tod>p.departAt&&tod<0.66)p.st='go'; // wake & drive off in the morning; the wider upper bound is a failsafe so a page suspended across the morning (backgrounded tab / occlusion) can't strand a sleeper — it still clears before the 4pm regular arrives
@@ -1298,6 +1332,7 @@ function update(dt){
     if(partsT.ph===0){partsT.x-=34*vdt;if(partsT.x<=dock){partsT.x=dock;partsT.ph=1;partsT.t=0;}}
     else if(partsT.ph===1){partsT.t+=vdt;if(partsT.t>8)partsT.ph=2;}
     else{partsT.x-=34*vdt;if(partsT.x<-70)partsT=null;}
+    if(partsT&&partsT.ph!==1&&vdt>0&&Math.random()<0.25)smoke.push({x:partsT.x+1.7,y:110,vx:4,vy:-5,life:0.8,max:0.8,c:'#8b8f99'}); // diesel puff while rolling, same idiom as the train stack
   }
   // equipment haulers out of the garage bay
   while(haulTimes.length&&tod>haulTimes[0]+0.05)haulTimes.shift(); // missed the window
@@ -1320,6 +1355,7 @@ function update(dt){
       else if(h.ph===1){h.t+=vdt;if(h.t>4&&!h.unloaded){h.unloaded=true;lotStock=Math.min(2,lotStock+1);}if(h.t>7)h.ph=2;} // the trade-in joins the lot inventory
       else h.x+=h.dir*30*vdt;
     }else{ if(h.ph===0){h.t+=vdt;if(h.t>7)h.ph=1;} else h.x+=h.dir*30*vdt; }
+    if(vdt>0&&Math.random()<0.25&&(h.drop?h.ph!==1:h.ph===1))smoke.push({x:h.x-h.dir*1.7,y:110,vx:-h.dir*4,vy:-5,life:0.8,max:0.8,c:'#8b8f99'}); // diesel puff while rolling, same idiom as the parts semi
   }
   haulers=haulers.filter(h=>h.x>-70&&h.x<W+70);
   // the big barn door slides open for morning chores
@@ -1625,9 +1661,13 @@ function update(dt){
       smoke.push({x:tract.x-tract.dir*(7+Math.random()*4),y:tract.y-1,vx:-tract.dir*2+(Math.random()-0.5)*2,vy:-1.2-Math.random()*1.6,life:1.1,max:1.1,c:'#c2ab84'});}}
 
   // chimney smoke
-  const coldOut=(live&&wx)?wx.tempF<55:(seasonIdx===3||(seasonIdx!==1&&dl<0.45));
+  coldOut=(live&&wx)?wx.tempF<55:(seasonIdx===3||(seasonIdx!==1&&dl<0.45));
   if(coldOut){chimT-=vdt; if(chimT<0){chimT=0.55+Math.random()*1.6;   // irregular puffs, not a constant plume — a fire draws in wisps, not a steady jet
     smoke.push({x:HX+21.5,y:HOR-22,vx:(Math.random()-0.5)*2,vy:-6-Math.random()*3,life:1.7,max:1.7,c:'#cfd3dd'});}}
+
+  // steam off Manny's coffee at his bay-step lunch, on cold days
+  if(coldOut&&folk[2].vis&&folk[2].sit&&tod>0.5&&tod<0.53){coffeeT-=vdt; if(coffeeT<0){coffeeT=0.35+Math.random()*0.4;
+    smoke.push({x:folk[2].x+1.4,y:folk[2].y-6.3,vx:(Math.random()-0.5)*0.8,vy:-3.5-Math.random()*1.8,life:0.85,max:0.85,c:'#e9e3d6'});}}
 
   // particle spawns
   const spawn=n=>Math.floor(n)+(Math.random()<n%1?1:0);
@@ -1637,7 +1677,7 @@ function update(dt){
     if(weather>0.05&&wSnow){let k=spawn(weather*60*vdt);
       while(k--)flakes.push({x:Math.random()*(W+30)-15,y:-4,v:13+Math.random()*9,ph:Math.random()*TAU,gy:HOR+2+Math.random()*(H-HOR-4)});}
     if(seasonIdx===2){let k=spawn((0.5+seasonT)*2.4*vdt);
-      while(k--){const t=TREES[1+(Math.random()*3|0)];
+      while(k--){const t=TREES[Math.random()*4|0];
         leaves.push({x:t.x+(Math.random()*12-6),y:HOR-14+Math.random()*6,vy:9+Math.random()*6,ph:Math.random()*TAU,
           c:['#c96f35','#b3552e','#d99a3c'][Math.random()*3|0],gy:HOR+10+Math.random()*70});}}
     if(dl>0.6&&seasonIdx!==3&&Math.random()<0.0007)spawnFlock(Math.random()<0.5?1:-1);
@@ -1648,7 +1688,10 @@ function update(dt){
   flashT=Math.max(0,flashT-vdt);
 
   // particle motion
-  drops=drops.filter(p=>{p.y+=p.v*vdt;p.x+=wind*0.35*vdt;return p.y<p.gy;});
+  drops=drops.filter(p=>{p.y+=p.v*vdt;p.x+=wind*0.35*vdt;
+    if(p.y>=p.gy)splashes.push({x:p.x,y:p.gy,life:0.15,max:0.15});
+    return p.y<p.gy;});
+  splashes=splashes.filter(p=>{p.life-=vdt;return p.life>0;});
   flakes=flakes.filter(p=>{p.y+=p.v*vdt;p.x+=(Math.sin(rt*1.5+p.ph)*6+wind*0.35)*vdt;return p.y<p.gy;});
   smoke=smoke.filter(p=>{p.life-=vdt;p.x+=(wind*0.12+p.vx)*vdt;p.y+=p.vy*vdt;return p.life>0;});
   leaves=leaves.filter(p=>{p.y+=p.vy*vdt;p.x+=(Math.sin(rt*2.2+p.ph)*9+wind*0.12)*vdt;return p.y<p.gy;});
@@ -1783,14 +1826,18 @@ function update(dt){
   }
   // Gus works the fence line at dusk
   {
-    const catOK=dl<0.55&&weather<0.4&&snowCover<0.7;
-    if(catOK&&!cat.vis){cat.vis=true;cat.x=cat.tx=HX+34+Math.random()*Math.max(6,(DX-16)-(HX+34));}
-    if(!catOK)cat.vis=false;
+    let cvis=dl<0.55&&weather<0.4&&snowCover<0.7;
+    if(weather>=0.4)cvis=cat.vis&&cat.wasVis&&weather<0.62; // caught out when rain starts: trot to the barn, don't blink out
+    if(cvis&&!cat.wasVis)cat.x=cat.tx=HX+34+Math.random()*Math.max(6,(DX-16)-(HX+34));
+    cat.wasVis=cvis;cat.vis=cvis;
     if(cat.vis){
-      if(Math.abs(cat.tx-cat.x)<1){cat.sit-=vdt;
+      const ctx=weather>=0.4?BARNX+40:cat.tx;
+      if(weather<0.4&&Math.abs(ctx-cat.x)<1){cat.sit-=vdt;
+        if(!cat.pounce&&cat.sit>1.6&&Math.random()<0.004)cat.pounce=1.6; // a mouse in the grass below catches his eye
         if(cat.sit<=0){cat.sit=4+Math.random()*8;
           cat.tx=HX+33+Math.random()*Math.max(6,(DX-16)-(HX+33));}
-      }else{cat.dir=Math.sign(cat.tx-cat.x)||1;cat.x+=cat.dir*5*vdt;}
+      }else if(Math.abs(ctx-cat.x)>1){cat.dir=Math.sign(ctx-cat.x)||1;cat.x+=cat.dir*(weather>=0.4?9:5)*vdt;}
+      if(cat.pounce>0)cat.pounce=Math.max(0,cat.pounce-vdt);
     }
   }
   for(const c of clouds){c.x+=c.v*(0.4+wind*0.04)*vdt;if(c.x>W+40){c.x=-40;c.y=8+Math.random()*44;}}
@@ -1873,6 +1920,7 @@ function drawTractorAt(x,y,s,dir,mov,lit,rider){
   P(-9,-10,10,2,'#356c33');
   P(-9,-10,10,1,'#3f7a3a');
   P(-9,-16,9,7,'#2f5f2e');P(-10,-17,11,1,'#24491f');
+  if(snowCover>0.3&&!mov){g.fillStyle=css(SNOW);g.fillRect(1,-10,9,0.6);g.fillRect(-10,-17,11,0.6);}
   g.fillStyle=lit&&dl<0.4?'#f2d98a':S(lit?'#b9d6e0':'#8ea8b4');
   g.fillRect(-8,-15,7,4);
   if(dl>0.5&&!(lit&&dl<0.4)){ // daylight cab-glass glint, same treatment as the showroom
@@ -1940,11 +1988,23 @@ function drawCrop(cell,cx,y,sc){
 function fenceRun(x1,x2){
   g.fillStyle=S('#5d4a38',0.68);
   for(let x=x1;x<=x2;x+=9)g.fillRect(x,HOR-5,1,6); // straight posts, every top square over its base — was a 1px "lean" (top shifted to x+1) that read as a misaligned cap on a 1px pole, worst by the windmill & the house
+  g.fillStyle=shA(mixA(C('#5d4a38'),SNOW,0.25),0.6); // weathered sun-bleached cap, same two-tone highlight idiom as the vehicle sweep
+  for(let x=x1;x<=x2;x+=9)g.fillRect(x,HOR-5,1,1);
   g.globalAlpha=0.8;g.fillRect(x1,HOR-4,x2-x1,1);g.fillRect(x1,HOR-2,x2-x1,1);g.globalAlpha=1;
   if(snowCover>0.3){g.fillStyle=css(SNOW);for(let x=x1;x<=x2;x+=9)g.fillRect(x,HOR-6,1,1);}
 }
 // (fence birds REMOVED 2026-07-13 at Austin's call — at fence-rail scale a bird can't read
 //  as a bird to a store visitor without being told what it is. Do not re-add.)
+function drawMailbox(x){ // the roadside mailbox; mbFlag rises when the mail carrier reaches it
+  shadow(x,HOR+0.6,2.3);
+  g.fillStyle=S('#8a7a5a',0.7);g.fillRect(x,HOR-6,1,7);
+  g.fillStyle=S('#54677a',0.78);g.fillRect(x-2,HOR-9,5,3);
+  g.fillStyle=shA(mixA(C('#54677a'),SNOW,0.22),0.5);g.fillRect(x-2,HOR-9,5,1); // box top catching the light, same idiom as the window frames
+  g.fillStyle=S('#3a4552',0.55);g.fillRect(x-2,HOR-7,5,1);
+  if(mbFlag){g.fillStyle=S('#b8302a',0.85);g.fillRect(x+2,HOR-12,1,3);g.fillRect(x+2,HOR-12,2,1);}
+  else{g.fillStyle=S('#8a2a24',0.55);g.fillRect(x+2,HOR-8,1,1);}
+  if(snowCover>0.3){g.fillStyle=css(SNOW);g.fillRect(x-2,HOR-10,5,1);}
+}
 function drawDealership(){
   const lit=dl<0.45;
   // paved lot
@@ -1958,8 +2018,8 @@ function drawDealership(){
     g.globalAlpha=1;
   }
   // sign halo + panel — a soft radial bloom drawn additive, so the lit sign reads as a light source (same trick as the VFW party glow)
-  if(lit){
-    g.save();g.globalCompositeOperation='lighter';
+  if(dealerLit>0.02){ // fades in over a few seconds at dusk instead of snapping to full brightness the instant dl crosses the lit threshold
+    g.save();g.globalCompositeOperation='lighter';g.globalAlpha=dealerLit;
     g.translate(DX+DW/2,HOR-20);g.scale(30,16);
     g.fillStyle=SIGNG;g.fillRect(-1.05,-1.05,2.1,2.1);
     g.restore();
@@ -1983,6 +2043,18 @@ function drawDealership(){
   P(DX,HOR-16,DW,16,'#c2c8d0');
   P(DX,HOR-16,DW,1,'#878e99');
   P(DX+DW-1,HOR-16,1,16,'#aab0ba');
+  { // pennant bunting strung along the roofline — the classic lot festivity, swaying with the wind like the flag/laundry
+    const bx1=DX+2,bx2=DX+DW-2,by=HOR-17,fw4=clamp(wind/40,0,1);
+    g.fillStyle=S('#7e858f',0.5);g.fillRect(bx1,by,1,2);g.fillRect(bx2,by,1,2); // anchor poles
+    g.fillStyle=S('#c3c9d4',0.4);g.fillRect(bx1,by,bx2-bx1+1,1);               // the string
+    const PC=['#2f7d3a','#e8c83c'];                                            // Keating green/yellow, alternating
+    const pn=Math.floor((bx2-bx1)/4);
+    for(let i2=0;i2<pn;i2++){
+      const px=bx1+2+i2*4,sway=Math.sin(rt*(1.3+wind*0.08)+i2*1.7)*(0.3+fw4*0.7);
+      g.fillStyle=S(PC[i2%2],0.5);
+      g.beginPath();g.moveTo(px+sway*0.3,by+1);g.lineTo(px+1+sway*0.3,by+1);g.lineTo(px+0.5+sway,by+3.2);g.closePath();g.fill();
+    }
+  }
   g.fillStyle='rgba(10,12,20,0.14)';g.fillRect(DX-1,HOR,DW+2,1);
   // showroom glass
   const wxx=DX+4,wy=HOR-12,ww=24,wh=11;
@@ -2014,6 +2086,8 @@ function drawDealership(){
     g.globalAlpha=1;
   }
   P(DX+56,HOR-8,4,8,'#5a6068');
+  g.fillStyle=shA(mixA(C('#5a6068'),SNOW,0.22),0.5);g.fillRect(DX+56,HOR-8,4,1); // door top edge catching light, same idiom as the farmhouse window frames
+  g.fillStyle=shA(mixA(C('#5a6068'),NIGHT,0.28),0.55);g.fillRect(DX+56,HOR-1,4,1); // door base, shaded
   g.fillStyle=S('#c3c9d4',0.5);g.fillRect(DX+58,HOR-4,1,1); // door handle
   if(snowCover>0.25){g.fillStyle=css(SNOW);g.fillRect(DX-1,HOR-25,DW+2,1);g.fillRect(DX,HOR-17,DW,1);}
   // (lot inventory drawn later, over the walkers — see the logistics draw block)
@@ -2073,6 +2147,10 @@ function drawWeld(x,y){ // Manny's arc welder at the bay bench — workpiece, gl
     g.fillStyle='#ffffff';g.fillRect(x,y-1.6,1,1);
   }
 }
+function drawMannyCoffee(x,y){ // a mug at his side during the cold-weather lunch sit; the curling steam itself is a smoke-array puff (see update)
+  g.fillStyle=S('#8a5a34',0.55);g.fillRect(x+1.3,y-4.6,1,1.1);   // mug body
+  g.fillStyle=S('#cdd3da',0.5);g.fillRect(x+1.1,y-4.9,0.5,0.5);  // rim catch
+}
 function drawHawk(){ // a red-tail soaring — a shallow-V silhouette that banks through the turn, an occasional lazy flap
   const x=hawk.x,y=hawk.y,bank=Math.cos(hawk.a)*0.7,flap=Math.sin(rt*3.5+hawk.a)>0.82?0.9:0;
   g.strokeStyle=S('#352d24',0.5);g.lineWidth=1;
@@ -2097,16 +2175,18 @@ function drawCow(c,y,sc){ // a grazing cow — Angus black or a white-faced Here
     g.fillRect(x+D*4*s,y-4.5*s,2.4*s,4*s);                                    // neck angling down
     g.fillRect(x+D*5.6*s-1.4*s,y-2.2*s,2.8*s,2.2*s);                          // lowered head
     if(c.herf){g.fillStyle=S('#e8e0d4',0.6);g.fillRect(x+D*5.6*s-1.4*s,y-2.2*s,2.8*s,1.6*s);}
+    g.fillStyle=S('#1a1712',0.6);g.fillRect(x+D*6.5*s,y-1.6*s,0.6*s,0.6*s);   // eye
   }else{
     g.fillRect(x+D*4.4*s,y-8*s,2.2*s,3*s);                                    // neck up
     g.fillRect(x+D*5.4*s-1.2*s,y-9.6*s,2.6*s,2.4*s);                          // head up (alert)
     if(c.herf){g.fillStyle=S('#e8e0d4',0.6);g.fillRect(x+D*5.4*s-1.2*s,y-9.6*s,2.6*s,1.7*s);}
+    g.fillStyle=S('#1a1712',0.6);g.fillRect(x+D*6.3*s,y-8.6*s,0.6*s,0.6*s);   // eye
   }
   g.fillStyle=S(leg,0.6);
   g.fillRect(x-D*5*s,y-6*s,0.9*s,4*s+Math.sin(c.tail*3)*1.4*s);               // tail flick
 }
 
-function drawCombine(x,y,s,dir){
+function drawCombine(x,y,s,dir,rider){
   shadow(x,y,13*s);
   g.save();
   g.translate(x,y-Math.abs(Math.sin(x*1.7))*0.5);g.scale(dir*s,s);
@@ -2130,6 +2210,15 @@ function drawCombine(x,y,s,dir){
   P(-1,-17,7,6,'#2f5f2e');
   g.fillStyle=dl<0.4?'#f2d98a':S('#b9d6e0');
   g.fillRect(0,-16,5,4);
+  if(dl>0.5){                                       // daylight cab-glass glint, same treatment as drawTractorAt/the showroom
+    g.beginPath();g.moveTo(1.1,-16);g.lineTo(2,-16);g.lineTo(0.8,-12);g.lineTo(0,-12);g.closePath();
+    g.fillStyle='rgba(255,255,255,0.14)';g.fill();
+  }
+  if(rider){                                        // a small seated operator in the cab, same treatment as drawTractorAt
+    g.fillStyle=S('#9aa2ae',0.55);g.fillRect(2,-18,2.4,3);
+    g.fillStyle=S('#c9a985',0.52);g.fillRect(2.4,-19.6,1.8,1.8);
+    g.fillStyle=S('#8a2f2a',0.55);g.fillRect(2.2,-20.2,2.2,0.9);g.fillRect(4.2,-20,0.8,0.5);
+  }
   P(6,-11,3,5,'#356c33');
   P(9,-6,9,2,'#d8b93f');
   P(9,-5,9,1,'#b09232');
@@ -2148,7 +2237,7 @@ function drawCombine(x,y,s,dir){
 }
 function drawSprayer(x,y,s,dir){
   shadow(x,y,9*s);
-  g.save();g.translate(x,y);g.scale(dir*s,s);
+  g.save();g.translate(x,y-Math.abs(Math.sin(x*1.8))*0.6);g.scale(dir*s,s); // chassis bounce, matches drawTractorAt/drawCombine
   g.fillStyle=S('#22242c');
   g.beginPath();g.arc(-5,-3,3,0,TAU);g.fill();
   g.beginPath();g.arc(5,-3,3,0,TAU);g.fill();
@@ -2163,25 +2252,37 @@ function drawSprayer(x,y,s,dir){
   g.fillRect(-19,-9,0.7,0.9);g.fillRect(-13,-9,0.7,0.9);
   g.fillRect(12.3,-9,0.7,0.9);g.fillRect(18.3,-9,0.7,0.9);
   P(-7,-13,14,7,'#3e7d3b');
+  g.fillStyle=shA(mixA(C('#3e7d3b'),SNOW,0.22),0.5);g.fillRect(-7,-13,14,1); // roof highlight, matches drawCart/drawTruck
+  g.fillStyle=shA(mixA(C('#3e7d3b'),NIGHT,0.3),0.72);g.fillRect(-7,-7,14,1); // undercarriage shade
   P(2,-15,5,4,'#2f5f2e');
   g.fillStyle=dl<0.4?'#f2d98a':S('#b9d6e0');g.fillRect(3,-14,3,2.5);
+  if(dl>0.5){                                       // daylight cab-glass glint, same treatment as drawTractorAt/drawCombine
+    g.beginPath();g.moveTo(3.7,-14);g.lineTo(4.2,-14);g.lineTo(3.5,-11.5);g.lineTo(3,-11.5);g.closePath();
+    g.fillStyle='rgba(255,255,255,0.14)';g.fill();
+  }
   P(-6,-15,6,2,'#d8b93f');
   g.restore();
 }
 function drawPlanter(x,y,s,dir){
+  shadow(x,y,8*s);
   g.save();g.translate(x,y);g.scale(dir*s,s);
   P(-16,-6,11,1,'#d8b93f');
   for(let i2=0;i2<4;i2++)P(-15+i2*2.7,-9,2,3,'#3e7d3b');
+  g.fillStyle=shA(mixA(C('#3e7d3b'),SNOW,0.22),0.5);
+  for(let i2=0;i2<4;i2++)g.fillRect(-15+i2*2.7,-9,2,1); // hopper-top highlight, too thin for full sandwich (drawMower/drawBike idiom)
   g.fillStyle=S('#22242c');
   g.beginPath();g.arc(-14,-2,1.2,0,TAU);g.fill();
   g.beginPath();g.arc(-7,-2,1.2,0,TAU);g.fill();
   g.restore();
 }
 function drawBaler(x,y,s,dir){
+  shadow(x,y,7*s);
   g.save();g.translate(x,y);g.scale(dir*s,s);
   P(-10,-5,5,1,'#d8b93f');
   g.fillStyle=S('#3e7d3b');
   g.beginPath();g.arc(-14,-5.5,4,0,TAU);g.fill();
+  g.fillStyle=shA(mixA(C('#3e7d3b'),SNOW,0.22),0.5);
+  g.beginPath();g.arc(-15,-6.7,1.1,0,TAU);g.fill(); // chamber sun-catch highlight, matches drawSprayer/drawCart roof highlight
   g.fillStyle=S('#2f5f2e');
   g.beginPath();g.arc(-14,-5.5,2.2,0,TAU);g.fill();
   g.fillStyle=S('#22242c');
@@ -2189,12 +2290,15 @@ function drawBaler(x,y,s,dir){
   g.restore();
 }
 function drawCart(x,y,s,dir,fill){
+  shadow(x,y,5*s);
   g.save();g.translate(x,y);g.scale(dir*s,s);
   g.fillStyle=S('#22242c');
   g.beginPath();g.arc(-2,-2.2,2.2,0,TAU);g.fill();
   g.fillStyle=S('#d8b93f');
   g.beginPath();g.arc(-2,-2.2,0.8,0,TAU);g.fill();
   P(-7,-9,12,6,'#3e7d3b');
+  g.fillStyle=shA(mixA(C('#3e7d3b'),SNOW,0.22),0.5); g.fillRect(-7,-9,12,1); // roof highlight
+  g.fillStyle=shA(mixA(C('#3e7d3b'),NIGHT,0.3),0.72); g.fillRect(-7,-4,12,1); // undercarriage shade
   P(5,-6,3,1,'#4a4e58');
   if(fill>0){g.fillStyle=S('#e0c04c',0.6);
     g.beginPath();g.ellipse(-1,-9,4*fill+1,1.5*fill+0.3,0,Math.PI,TAU);g.fill();}
@@ -2208,15 +2312,22 @@ function drawCar(x,y,col,dir){
   g.beginPath();g.arc(3.2,-1.6,1.8,0,TAU);g.fill();
   P(-5.5,-4.8,11,3,col);
   P(-2.5,-7,5.6,2.4,col);
+  g.fillStyle=shA(mixA(C(col),SNOW,0.22),0.5);g.fillRect(-2.5,-7,5.6,1); // roof highlight, matches drawPickup's cab treatment
   g.fillStyle=dl<0.4?'#f2d98a':S('#b9d6e0');g.fillRect(-1.8,-6.6,4.2,1.8);
+  if(dl>0.5){                                       // daylight glass glint, same treatment as drawTractorAt/drawCombine/drawSprayer
+    g.beginPath();g.moveTo(-0.88,-6.6);g.lineTo(-0.12,-6.6);g.lineTo(-1.13,-4.8);g.lineTo(-1.8,-4.8);g.closePath();
+    g.fillStyle='rgba(255,255,255,0.14)';g.fill();
+  }
   g.fillStyle=S('#22242c',0.7);g.fillRect(-5.5,-2.2,11,0.6);
   if(dl<0.3){g.fillStyle='rgba(255,230,150,0.8)';g.fillRect(5.2,-3.6,0.8,0.8);
+    g.fillStyle='rgba(255,230,150,0.08)';g.fillRect(6,-4.6,8,3); // headlight glow beam, same idiom as drawTruckSm/drawPickup/drawBike/drawSemi
     g.fillStyle='rgba(255,90,80,0.7)';g.fillRect(-5.8,-3.6,0.6,0.8);}
   g.restore();
 }
 function drawWalker(wx,y,shirt,cap){
   shadow(wx+0.5,y,2);
-  g.fillStyle=S('#3a4252',0.55);g.fillRect(wx-1,y-3,1,3);g.fillRect(wx+1,y-3,1,3);
+  const lsw=Math.sin(wx*0.9)*0.4; // leg scissor keyed to ground covered, freezes when wx stops (deer/rabbit gait idiom)
+  g.fillStyle=S('#3a4252',0.55);g.fillRect(wx-1+lsw,y-3,1,3);g.fillRect(wx+1-lsw,y-3,1,3);
   g.fillStyle=S(shirt,0.58);g.fillRect(wx-1,y-6,3,3);
   g.fillStyle=S('#c9a985',0.52);g.fillRect(wx-0.5,y-8,2,2);
   g.fillStyle=S(cap,0.55);g.fillRect(wx-0.6,y-8.8,2.2,1);
@@ -2237,9 +2348,14 @@ function drawSemi(x,y,s,dir,flat,load){
   g.beginPath();g.arc(-16,-2.2,0.4,0,TAU);g.fill();
   g.beginPath();g.arc(-21,-2.2,0.4,0,TAU);g.fill();
   P(-1,-13,9,9,'#e8eaee');
+  g.fillStyle=shA(mixA(C('#e8eaee'),SNOW,0.22),0.5);g.fillRect(-1,-13,9,1); // cab roof highlight, matches drawTruck's cab treatment
   P(6,-10,3,6,'#dfe2e8');
   P(-1,-5,9,1,'#c9ced6');
   g.fillStyle=dl<0.4?'#f2d98a':S('#b9d6e0');g.fillRect(3,-12,3,3);
+  if(dl>0.5){                                       // daylight cab-glass glint, same treatment as drawTractorAt/drawCombine/drawSprayer/drawCar/drawTruckSm/drawPickup
+    g.beginPath();g.moveTo(3.66,-12);g.lineTo(4.2,-12);g.lineTo(3.48,-9);g.lineTo(3,-9);g.closePath();
+    g.fillStyle='rgba(255,255,255,0.14)';g.fill();
+  }
   P(-1,-14,6,1,'#c9ced6');
   g.fillStyle=S('#aab0ba');                       // grille slats
   g.fillRect(7.4,-8.6,1.6,0.5);g.fillRect(7.4,-7.4,1.6,0.5);
@@ -2255,6 +2371,11 @@ function drawSemi(x,y,s,dir,flat,load){
   }
   P(-1.7,-16,0.8,12,'#6a7078');                   // exhaust stack
   g.fillStyle=S('#b8bdc6');g.fillRect(-1.7,-16,0.8,1);
+  if(dl<0.3){                                       // night headlight+taillight, same idiom as drawTruckSm/drawCar
+    g.fillStyle='rgba(255,230,150,0.7)';g.fillRect(9,-6,1,1);
+    g.fillStyle='rgba(255,230,150,0.08)';g.fillRect(10,-7,10,3);
+    g.fillStyle='rgba(255,90,80,0.7)';g.fillRect(-27.6,-6,0.6,0.8);
+  }
   g.restore();
   if(flat&&load)drawLoad(load,x-dir*15*s,y-6*s,dir);
 }
@@ -2267,6 +2388,8 @@ function drawLoad(kind,x,y,dir){
     g.fillStyle=S('#3e7d3b');g.fillRect(x-5,y-4,10,1);
     g.fillStyle=S('#2c3138');
     for(let i2=0;i2<4;i2++)g.fillRect(x-4+i2*3,y-3,1,3);
+    g.fillStyle=shA(mixA(C('#2c3138'),SNOW,0.25),0.5); // a worn steel cap catching the light — same 1px-highlight idiom as the fence-post caps
+    for(let i2=0;i2<4;i2++)g.fillRect(x-4+i2*3,y-3,1,1);
   }else if(kind==='mower')drawMower(x,y,dir,false);
 }
 function drawMower(x,y,dir,riding){
@@ -2276,6 +2399,7 @@ function drawMower(x,y,dir,riding){
   g.beginPath();g.arc(x+3*dir,y-1.1,1,0,TAU);g.fill();
   g.fillStyle=S('#2c3138');g.fillRect(x-4,y-1.5,9,1);
   g.fillStyle=S('#f2c018',0.5);g.fillRect(x-3,y-4,6,2.6);
+  g.fillStyle=shA(mixA(C('#f2c018'),SNOW,0.22),0.5);g.fillRect(x-3,y-4,6,1); // deck highlight — too thin (2.6px) for a full undercarriage sandwich, so highlight-only like drawCar's cab
   if(riding){
     g.fillStyle=S('#5a6a8c',0.55);g.fillRect(x-1,y-7,2.4,3);
     g.fillStyle=S('#c9a985',0.52);g.fillRect(x-0.6,y-8.6,1.8,1.8);
@@ -2295,11 +2419,15 @@ function spawnProtest(until){
   protest={arr,until};
 }
 function drawSign(x,y){
+  shadow(x+1.5,y+0.6,2);
   g.fillStyle=S('#8a8272',0.55);g.fillRect(x+1,y-3,1,3);
   g.fillStyle=S('#e8e6de',0.5);g.fillRect(x,y-6,4,3);
+  g.fillStyle=shA(mixA(C('#e8e6de'),SNOW,0.22),0.5);g.fillRect(x,y-6,4,1);
+  g.fillStyle=shA(mixA(C('#e8e6de'),NIGHT,0.28),0.55);g.fillRect(x,y-4,4,1);
   g.fillStyle=S('#6a707a',0.5);g.fillRect(x+1,y-5,2,1);
   g.fillStyle=S('#c03434',0.45);
   g.fillRect(x,y-6,1,1);g.fillRect(x+1,y-5,1,1);g.fillRect(x+2,y-4,1,1);
+  if(snowCover>0.3){g.fillStyle=css(SNOW);g.fillRect(x,y-7,4,1);} // snow cap, same idiom as drawMailbox
 }
 function vfwDaily(){ // tonight's roster at the post, and the flag's duty
   halfMast=false;memDay=false;
@@ -2343,15 +2471,25 @@ function drawBike(x,y,col,moving,wob){
   g.fillStyle=S('#22242c');
   g.beginPath();g.arc(x-2.5,y-1.6,1.7,0,TAU);g.fill();
   g.beginPath();g.arc(x+2.5,y-1.6,1.7,0,TAU);g.fill();
+  if(moving){ // spinning spoke — same swinging-line idiom as the tractor's wheelAng, phased off x so it freezes the instant the bike stops (no new state to reset)
+    const wa2=x*0.6;
+    g.strokeStyle=S('#54586a');g.lineWidth=1;g.beginPath();
+    g.moveTo(x-2.5+Math.cos(wa2)*1.4,y-1.6+Math.sin(wa2)*1.4);g.lineTo(x-2.5-Math.cos(wa2)*1.4,y-1.6-Math.sin(wa2)*1.4);
+    g.moveTo(x+2.5+Math.cos(wa2)*1.4,y-1.6+Math.sin(wa2)*1.4);g.lineTo(x+2.5-Math.cos(wa2)*1.4,y-1.6-Math.sin(wa2)*1.4);
+    g.stroke();
+  }
   g.fillStyle=S(col,0.5);g.fillRect(x-2,y-4,4,2);
+  g.fillStyle=shA(mixA(C(col),SNOW,0.22),0.5);g.fillRect(x-2,y-4,4,1); // frame highlight — too thin (2px) for a full sandwich, so highlight-only like drawMower's deck
   g.fillStyle=S('#8a8f98',0.5);g.fillRect(x+3,y-5,1,2);
   if(moving){
     const wbx=wob?Math.sin(rt*9)*wob*0.6:0;                     // a learner's wobble
     g.fillStyle=S('#3a4252',0.55);g.fillRect(x-1.2+wbx,y-6.5,2.4,2.5);
     g.fillStyle=S('#c9a985',0.52);g.fillRect(x-0.8+wbx,y-8,1.8,1.6);
+    g.fillStyle=S('#8a2f2a',0.55);g.fillRect(x-0.9+wbx,y-8.8,2,1); // cap, same idiom as drawWalker/drawTractorAt/drawCombine/drawMower riders
     if(dl<0.3){
       g.fillStyle='rgba(255,230,150,0.8)';g.fillRect(x+4,y-4,1,1);
       g.fillStyle='rgba(255,230,150,0.08)';g.fillRect(x+5,y-5,8,3);
+      g.fillStyle='rgba(255,90,80,0.7)';g.fillRect(x-4,y-4,0.6,0.8); // taillight — same idiom as drawTruckSm/drawCar/drawPickup/drawSemi
     }
   }
 }
@@ -2364,16 +2502,28 @@ function drawTruckSm(x,y,col,dir){
   P(-6,-7,13,4,col);
   P(1,-10,5,3,col);
   g.fillStyle=shA(mixA(C(col),NIGHT,0.25),0.5);g.fillRect(-6,-4,13,1);
+  g.fillStyle=shA(mixA(C(col),SNOW,0.22),0.6);g.fillRect(1,-10,5,1); // roof highlight, matches drawPickup's cab treatment
   g.fillStyle=dl<0.4?'#f2d98a':S('#b9d6e0');g.fillRect(2,-9,3,2);
-  if(dl<0.3){
+  if(dl>0.5){                                       // daylight glass glint, same treatment as drawTractorAt/drawCombine/drawSprayer/drawCar
+    g.beginPath();g.moveTo(2.66,-9);g.lineTo(3.2,-9);g.lineTo(2.48,-7);g.lineTo(2,-7);g.closePath();
+    g.fillStyle='rgba(255,255,255,0.14)';g.fill();
+  }
+  if(dl<0.3){                                       // night headlight+taillight, same idiom as drawCar/drawPickup/drawSemi
     g.fillStyle='rgba(255,230,150,0.7)';g.fillRect(6,-5,1,1);
     g.fillStyle='rgba(255,230,150,0.08)';g.fillRect(7,-6,10,3);
+    g.fillStyle='rgba(255,90,80,0.7)';g.fillRect(-6.6,-5,0.6,0.8);
   }
   g.restore();
 }
 function drawVFW(){
   const x=VFWX-9;
   P(VFWX-20,HOR,74,7,'#9a938a',0.75);            // gravel apron — widened to hold the full parked row (up to 6) on gravel
+  if(snowCover<0.5){ // wheel ruts worn into the gravel by the nightly parade of pickups — same idiom as the dealership lot's tire ruts
+    g.globalAlpha=0.22*(1-snowCover);
+    g.fillStyle=S('#716b65',0.75);
+    g.fillRect(VFWX-10,HOR+2,32,1);g.fillRect(VFWX-4,HOR+4,26,1);
+    g.globalAlpha=1;
+  }
   P(x,HOR-13,20,13,'#96543f');                   // brick
   g.globalAlpha=0.25;g.fillStyle=S('#5e3428');
   for(let yy=HOR-11;yy<HOR;yy+=2)g.fillRect(x,yy,20,1);
@@ -2386,10 +2536,17 @@ function drawVFW(){
   P(x+8,HOR-9,4,2,'#1f2c48');                    // small unmarked plaque — those who know, know
   let open=false;
   for(const p of vfwLot)if(p.st==='inside'){open=true;break;}
+  P(x+1,HOR-5,5,5,'#7e4434');P(x+14,HOR-5,5,5,'#7e4434'); // window frames — brick-trim tone (matches the corner post), same idiom as the farmhouse window frames
+  g.fillStyle=shA(mixA(C('#7e4434'),SNOW,0.22),0.5);
+  g.fillRect(x+1,HOR-5,5,1);g.fillRect(x+14,HOR-5,5,1);   // frame top edge catching the light
+  g.fillStyle=shA(mixA(C('#7e4434'),NIGHT,0.28),0.55);
+  g.fillRect(x+1,HOR-1,5,1);g.fillRect(x+14,HOR-1,5,1);   // frame sill underside, shaded
   g.fillStyle=open&&dl<0.55?'#ffd98a':S('#3a3026');
   g.fillRect(x+2,HOR-4,3,3);g.fillRect(x+15,HOR-4,3,3); // windows
   if(open&&dl<0.55){circle(x+3.5,HOR-2.5,4,'rgba(255,202,106,0.10)');circle(x+16.5,HOR-2.5,4,'rgba(255,202,106,0.10)');}
   P(x+8,HOR-6,4,6,'#b03030');                    // the red door
+  g.fillStyle=shA(mixA(C('#b03030'),SNOW,0.22),0.5);g.fillRect(x+8,HOR-6,4,1);  // door top edge catching light, same idiom as the man door/window frames
+  g.fillStyle=shA(mixA(C('#b03030'),NIGHT,0.28),0.55);g.fillRect(x+8,HOR-1,4,1); // door base, shaded
   g.fillStyle=S('#e8d4a0',0.4);g.fillRect(x+11,HOR-3,1,1);
   // the party glow — pulsing blue/red/purple, keyed to how full it is AND how dark it's gotten, so it emerges into the night and fades as folks leave
   if(vfwParty>0.04){
@@ -2456,6 +2613,7 @@ function startFire(){
   fire={c:8+Math.floor(Math.random()*Math.max(1,COLX.length-16)),r:0,t:0,phase:0,truckX:-40};
 }
 function drawTruck(x,y,s,dir){
+  shadow(x+dir*2*s,y,12*s);
   g.save();g.translate(x,y);g.scale(dir*s,s);
   g.fillStyle=S('#22242c');
   g.beginPath();g.arc(-5,-2.5,2.6,0,TAU);g.fill();
@@ -2467,15 +2625,27 @@ function drawTruck(x,y,s,dir){
   g.beginPath();g.arc(-5,-2.5,0.6,0,TAU);g.fill();
   g.beginPath();g.arc(6,-2.5,0.6,0,TAU);g.fill();
   P(-10,-9,14,5,'#b23430');
+  g.fillStyle=shA(mixA(C('#b23430'),SNOW,0.22),0.5); g.fillRect(-10,-9,14,1); // roof highlight
+  g.fillStyle=shA(mixA(C('#b23430'),NIGHT,0.3),0.72); g.fillRect(-10,-5,14,1); // undercarriage shade
   P(4,-11,6,7,'#b23430');
+  g.fillStyle=shA(mixA(C('#b23430'),SNOW,0.22),0.5); g.fillRect(4,-11,6,1); // cab roof highlight, matches hose-bed roof line above
   g.fillStyle=dl<0.4?'#f2d98a':S('#b9d6e0');
   g.fillRect(5,-10,3,3);
+  if(dl>0.5){                                       // daylight glass glint, same treatment as drawTruckSm/drawCar
+    g.beginPath();g.moveTo(5.66,-10);g.lineTo(6.2,-10);g.lineTo(5.48,-7);g.lineTo(5,-7);g.closePath();
+    g.fillStyle='rgba(255,255,255,0.14)';g.fill();
+  }
   P(-9,-12,11,3,'#c8ccd2');
   g.fillStyle=S('#9aa2ae');                       // ladder rungs
   for(let i3=0;i3<4;i3++)g.fillRect(-8+i3*3,-12,0.6,3);
   g.fillStyle=((rt*5|0)%2)?'#ff4848':'#4878ff';
   g.fillRect(5,-12,2,1);
   P(10,-8,1,4,'#7a2420');
+  if(dl<0.3){                                       // night headlight+taillight, same idiom as drawTruckSm/drawCar/drawPickup/bus
+    g.fillStyle='rgba(255,230,150,0.7)';g.fillRect(10,-5,1,1);
+    g.fillStyle='rgba(255,230,150,0.08)';g.fillRect(11,-6,10,3);
+    g.fillStyle='rgba(255,90,80,0.7)';g.fillRect(-10.6,-5,0.6,0.8);
+  }
   g.restore();
 }
 function drawTown(){
@@ -2500,10 +2670,12 @@ function drawTown(){
     g.fillRect(x,y,B.w,h);
     if(frac>=0.99){
       if(B.k==='house'){g.beginPath();g.moveTo(x-1,y);g.lineTo(x+B.w/2,y-2);g.lineTo(x+B.w+1,y);g.closePath();g.fill();
+        g.fillStyle=blite;g.fillRect(x+B.w/2-1,y-2,2,0.5);g.fillStyle=bcl;   // ridge catches the light, same idiom as the church steeple
         if(((i*7)%3)===0){g.fillRect(x+B.w-1,y-3,1,3); // the odd chimney
           if(seasonIdx===3&&dl<0.5&&(i%4)===1){        // somebody's stove is going
+            const sw=wind*0.025+Math.sin(rt*0.6+i)*0.12; // wisp leans downwind and breathes, same drift/lean idiom as the real smoke particles it sits beside
             g.globalAlpha=0.22;g.fillStyle=S('#c8ccd6',0.3);
-            g.fillRect(x+B.w-1,y-4.5,1,1);g.fillRect(x+B.w-0.5,y-5.7,1,1);
+            g.fillRect(x+B.w-1+sw,y-4.5-Math.sin(rt*0.6+i)*0.08,1,1);g.fillRect(x+B.w-0.5+sw*1.8,y-5.7-Math.sin(rt*0.6+i+0.5)*0.12,1,1);
             g.globalAlpha=1;g.fillStyle=bcl;
           }}}
       else if(B.k==='elev'){
@@ -2511,6 +2683,7 @@ function drawTown(){
         g.fillStyle=bcl;
         g.fillRect(x+B.w,y+1,2,3);g.fillRect(x-1,y+2,B.w+2,1);  // headhouse catwalk
         g.fillRect(x+1,y-1,B.w-2,1);                            // headhouse cap
+        g.fillStyle=blite;g.fillRect(x+1,y-1,B.w-2,0.5);g.fillStyle=bcl; // cap catches last light too
       }
       else if(B.k==='water'){
         g.fillRect(x-1,y,B.w+2,3);
@@ -2567,6 +2740,7 @@ function drawTown(){
       g.strokeStyle=shA(C('#8a6a2e'),0.45);g.lineWidth=1;g.beginPath();
       g.moveTo(x+4,cb);g.lineTo(x+4,cb-8);
       g.moveTo(x,cb-8);g.lineTo(x+8,cb-8);g.stroke();
+      if(dl<0.25&&((rt*0.8|0)%3)!==0){g.fillStyle='rgba(255,90,90,0.85)';g.fillRect(x+3.5,cb-9.4,1,1);} // night beacon, same idiom as the main under-construction crane
       g.fillStyle=shA(C('#9a8a6e'),0.5);g.fillRect(x-2,cb-1,2,1); // lumber, waiting
     }
   }
@@ -2582,8 +2756,10 @@ function drawTown(){
     g.stroke();
     g.beginPath();g.arc(fx2,fy2-7,5.5,0,TAU);g.stroke();
     for(let i2=0;i2<5;i2++){const a3=rt*0.35+i2*TAU/5;
+      const gx2=fx2+Math.cos(a3)*5.5,gy2=fy2-7+Math.sin(a3)*5.5;
+      if(dl<0.4)circle(gx2,gy2,1.4,'rgba(255,214,128,0.35)'); // gondola bulbs glow after dark
       g.fillStyle=['#e05a4a','#e8c83c','#5a8ac8','#7ab868','#c86ac8'][i2];
-      g.fillRect(fx2+Math.cos(a3)*5.5-0.5,fy2-7+Math.sin(a3)*5.5-0.5,1,1);}
+      g.fillRect(gx2-0.5,gy2-0.5,1,1);}
     const tents=1+Math.min(2,YRS);
     for(let t5=0;t5<tents;t5++){
       g.fillStyle=shA(C(['#c8b8d8','#d8b8b8','#b8c8d8'][t5]),0.55);
@@ -2596,10 +2772,10 @@ function drawPickup(x,y,s,dir,col,loaded,item){
   g.save();g.translate(x,y);g.scale(dir*s,s);
   g.fillStyle=S('#4a4e58');
   g.fillRect(-26,-4,16,1.5);
+  g.fillRect(-10,-4.5,4,1);
+  g.fillStyle=S('#22242c');                       // trailer + truck tires — tire black, same idiom as drawCart/drawSprayer/drawBaler/drawPlanter, not the frame gray
   g.beginPath();g.arc(-22,-2,1.8,0,TAU);g.fill();
   g.beginPath();g.arc(-14,-2,1.8,0,TAU);g.fill();
-  g.fillRect(-10,-4.5,4,1);
-  g.fillStyle=S('#22242c');
   g.beginPath();g.arc(-3,-2.5,2.4,0,TAU);g.fill();
   g.beginPath();g.arc(7,-2.5,2.4,0,TAU);g.fill();
   g.fillStyle=S('#3d434e');                       // inner rims
@@ -2613,6 +2789,15 @@ function drawPickup(x,y,s,dir,col,loaded,item){
   g.fillStyle=shA(mixA(C(col),NIGHT,0.25),0.6);g.fillRect(-7,-5,16,1);
   g.fillStyle=shA(mixA(C(col),C('#f4f6f8'),0.22),0.6);g.fillRect(3,-11,6,1);
   g.fillStyle=dl<0.4?'#f2d98a':S('#b9d6e0');g.fillRect(4,-10,3,2.5);
+  if(dl>0.5){                                       // daylight glass glint, same treatment as drawTractorAt/drawCombine/drawSprayer/drawCar/drawTruckSm
+    g.beginPath();g.moveTo(4.66,-10);g.lineTo(5.2,-10);g.lineTo(4.48,-7.5);g.lineTo(4,-7.5);g.closePath();
+    g.fillStyle='rgba(255,255,255,0.14)';g.fill();
+  }
+  if(dl<0.3){                                       // night headlight+taillight, same idiom as drawTruckSm/drawCar
+    g.fillStyle='rgba(255,230,150,0.7)';g.fillRect(9,-6,1,1);
+    g.fillStyle='rgba(255,230,150,0.08)';g.fillRect(10,-7,10,3);
+    g.fillStyle='rgba(255,90,80,0.7)';g.fillRect(-7.6,-6,0.6,0.8);
+  }
   g.restore();
   if(loaded){
     if(item==='mower')drawMower(x-dir*18*s,y-2*s,dir,false);
@@ -2749,7 +2934,6 @@ function draw(){
   }
 
   // clouds & birds
-  const cloudCov=live&&wx?clamp(wx.cloud/100,0,1):clamp(0.3+weather*0.7,0,1);
   const ccA=mixA(mixA(C('#2a3158'),C('#f2f4f8'),dl),C('#454c60'),weather*0.55);
   const ccol=css(ccA),cund=css(mixA(ccA,C('#3a4258'),0.4));
   g.globalAlpha=0.15+0.75*cloudCov;
@@ -2785,6 +2969,7 @@ function draw(){
   if(balloon){
     const bx2=balloon.x,by2=balloon.y;
     circle(bx2,by2,5,S('#3e7d3b',0.4));
+    circle(bx2-1.8,by2-1.7,1.3,shA(mixA(C('#3e7d3b'),SNOW,0.22),0.4)); // canopy sun-catch highlight, matches drawBaler's chamber-highlight idiom
     g.fillStyle=S('#e8c83c',0.4);g.fillRect(bx2-1,by2-5,2,10);
     g.fillStyle=S('#3e7d3b',0.4);g.fillRect(bx2-3,by2+4,6,2);
     g.strokeStyle=S('#5a4632',0.4);g.lineWidth=1;g.beginPath();
@@ -2800,6 +2985,7 @@ function draw(){
       g.lineTo(jet.x-jet.dir*(4+(i+1)*14),jet.y+0.5);g.stroke();
     }
     g.fillStyle='rgba(235,240,248,0.9)';g.fillRect(jet.x|0,jet.y|0,2,1);
+    if(dl<0.35&&((rt*2|0)%2)){g.fillStyle='#ff5a5a';g.fillRect((jet.x-jet.dir*3)|0,(jet.y-0.5)|0,0.7,0.7);}
   }
   if(hawk)drawHawk();
   // distant rocket launch
@@ -2929,9 +3115,10 @@ function draw(){
     // minimum legible cow: longer barrel, a leg GAP (the quadruped signature), and a head that drops
     // BELOW the body line to graze / rises above it to look. still small vs the ~12px town houses nearby.
     if(c.gone)continue;                                            // aboard the saucer, back in a few minutes
-    const lift=c.abdY||0;
+    const lift=c.abdY||0,gy=Math.max(c.y,hillEdgeY(c.x)+1.5);      // fixed ground line — shadow stays put through an abduction lift
+    shadow(c.x,gy,2.2);
     if(lift>0)g.globalAlpha=clamp(1-lift/32,0.3,1);                // dissolves into the ship's belly as she rises
-    const x=c.x,y=Math.max(c.y,hillEdgeY(c.x)+1.5)-lift,graze=(c.mv||0)<0.25&&Math.sin(c.p*0.9)<0.55; // seated on (or below) the ridge line — never floating over a dip
+    const x=c.x,y=gy-lift,graze=(c.mv||0)<0.25&&Math.sin(c.p*0.9)<0.55; // seated on (or below) the ridge line — never floating over a dip
     const hx3=x+(c.d>0?2.3:-3.3);                                  // head anchor, off the front of the barrel
     g.fillStyle=c.herf?S('#8a5a44',0.6):S('#2e2a28',0.6);
     g.fillRect(x-2.3,y-2.1,4.6,1.7);                               // barrel
@@ -2939,8 +3126,10 @@ function draw(){
     else{g.fillRect(hx3,y-3.1,1,2.4);g.fillRect(hx3+(c.d>0?0.7:-0.7),y-3.1,0.6,0.8);} // head UP, muzzle forward
     if(c.herf){g.fillStyle=S('#e8e0d4',0.6);g.fillRect(hx3,graze?y-1.1:y-3.1,1,0.6);} // Hereford white face
     g.fillStyle=c.herf?S('#6a4232',0.6):S('#201d1c',0.6);
-    g.fillRect(x-1.9,y-0.5,0.8,1.3);g.fillRect(x+1.2,y-0.5,0.8,1.3); // fore + hind legs, daylight between them
-    g.fillRect(x+(c.d>0?-2.5:1.9),y-2.1,0.6,1);                    // tail nub off the rump
+    const lsw5=Math.sin(x*1.3)*0.4; // leg scissor keyed to ground covered, freezes while grazing — same idiom as drawWalker/drawHunter
+    g.fillRect(x-1.9+lsw5,y-0.5,0.8,1.3);g.fillRect(x+1.2-lsw5,y-0.5,0.8,1.3); // fore + hind legs, daylight between them
+    const tf5=Math.sin(rt*3+x*0.4)*0.4;                            // tail flick, same idiom as drawCow/deer/rabbit
+    g.fillRect(x+(c.d>0?-2.5:1.9),y-2.1,0.6,1+tf5);                // tail nub off the rump
     if(lift>0)g.globalAlpha=1;
   }
   // the saucer working the hills — drawn after the cow so she rises INTO its belly
@@ -2972,15 +3161,19 @@ function draw(){
   if(train){
     for(let i=0;i<train.n;i++){
       const cx2=train.x-train.dir*(14+i*10);
-      g.fillStyle=shA(C(['#6a5a4a','#5a636e','#7a4a3e','#5e6a52'][i%4]),0.62);
+      const carC=C(['#6a5a4a','#5a636e','#7a4a3e','#5e6a52'][i%4]);
+      g.fillStyle=shA(carC,0.62);
       g.fillRect(cx2-4,HOR-5,8,4);
+      g.fillStyle=shA(mixA(carC,SNOW,0.22),0.5); g.fillRect(cx2-4,HOR-5,8,1); // roof highlight
+      g.fillStyle=shA(mixA(carC,NIGHT,0.3),0.72); g.fillRect(cx2-4,HOR-2,8,1); // undercarriage shade
     }
     g.fillStyle=shA(C('#3a4048'),0.6);
     g.fillRect(train.x-6,HOR-6,12,5);
     g.fillStyle=shA(C('#e8c83c'),0.5);
     g.fillRect(train.x-6,HOR-3,12,1);
     if(dl<0.3){g.fillStyle='rgba(255,230,150,0.6)';g.fillRect(train.x+train.dir*6,HOR-4,1,2);
-      circle(train.x+train.dir*8,HOR-3,3,'rgba(255,230,150,0.10)');}
+      circle(train.x+train.dir*8,HOR-3,3,'rgba(255,230,150,0.10)');
+      g.fillStyle='rgba(255,90,80,0.7)';g.fillRect(train.x-train.dir*(18.6+(train.n-1)*10),HOR-4,0.6,0.8);} // caboose taillight, same idiom as drawTruck/drawTruckSm/drawCar/drawPickup/bus
   }
 
   // ground
@@ -3038,12 +3231,16 @@ function draw(){
   g.moveTo(bx-3,HOR-20);g.lineTo(bx+4,HOR-28);g.lineTo(bx+26,HOR-28);g.lineTo(bx+33,HOR-20);
   g.closePath();g.fill();
   P(bx+4,HOR-28,22,1,'#7a3434'); // ridge cap
+  g.fillStyle=shA(mixA(C('#7a3434'),SNOW,0.22),0.5);g.fillRect(bx+4,HOR-28,22,0.5); // ridge catches the light, same idiom as the door
   P(bx,HOR-20,30,1,'#d9cfc0');
   P(bx+11,HOR-9,8,9,'#180d09');                                                    // dark interior
   P(bx+12,HOR-3,4,3,'#7a5a34',0.4);                                                // a hay bale inside
+  P(bx+13,HOR-1,2,1,'#5a4324',0.4);                                                // twine binding, echoes the round bales outside
   P(bx+11,HOR-10,16,1,'#3a1d1d');                                                  // slide rail
   const ddx=bx+11+Math.round(barnO*8);                                            // the panel slides right
   P(ddx,HOR-9,8,9,'#6e2a2a');
+  g.fillStyle=shA(mixA(C('#6e2a2a'),SNOW,0.22),0.5);g.fillRect(ddx,HOR-9,8,1); // door top edge catching the light, same idiom as the farmhouse door
+  g.fillStyle=shA(mixA(C('#6e2a2a'),NIGHT,0.28),0.55);g.fillRect(ddx,HOR-1,8,1); // door base, shaded
   g.strokeStyle=S('#d9cfc0');g.globalAlpha=0.6;g.lineWidth=1;g.beginPath();
   g.moveTo(ddx,HOR-9);g.lineTo(ddx+8,HOR);g.moveTo(ddx+8,HOR-9);g.lineTo(ddx,HOR);g.stroke();
   g.globalAlpha=1;
@@ -3058,6 +3255,14 @@ function draw(){
     g.fillStyle=`rgba(255,214,120,${0.75*lk})`;g.fillRect(bx+9.6,HOR-11,0.8,1);    // the lamp itself
   }
   P(bx+13,HOR-17,4,3,'#3a1d1d');
+  g.strokeStyle=shA(mixA(C('#3a1d1d'),SNOW,0.4),0.35);g.lineWidth=1;g.globalAlpha=0.4; // a cobweb in the loft-door corner — an old barn's quiet detail
+  g.beginPath();
+  g.moveTo(bx+13,HOR-17);g.lineTo(bx+16.5,HOR-15.2);
+  g.moveTo(bx+13,HOR-17);g.lineTo(bx+15,HOR-14.2);
+  g.moveTo(bx+13,HOR-17);g.lineTo(bx+13.3,HOR-14.4);
+  g.moveTo(bx+13.9,HOR-16.1);g.lineTo(bx+14.6,HOR-15.6);
+  g.moveTo(bx+14.6,HOR-15.6);g.lineTo(bx+14.2,HOR-15);
+  g.stroke();g.globalAlpha=1;
   g.globalAlpha=0.5;P(bx+12,HOR-18,6,1,'#d9cfc0');g.globalAlpha=1;                  // loft header
   if(snowCover>0.25){g.fillStyle=css(SNOW);g.fillRect(bx-3,HOR-21,37,1);g.fillRect(bx+4,HOR-29,22,1);}
   { // weathervane on the ridge — the arrow leans downwind and quivers in a gust
@@ -3073,20 +3278,33 @@ function draw(){
     g.restore();
   }
   // round bales stacked west of the barn
+  shadow(BARNX+2,HOR+3,2.3);shadow(BARNX+6,HOR+3,2.3);
   circle(BARNX+2,HOR+3,2.3,S('#c2a24e',0.5));circle(BARNX+6,HOR+3,2.3,S('#c2a24e',0.5));
   circle(BARNX+2,HOR+3,1,S('#8a6a3c',0.5));circle(BARNX+6,HOR+3,1,S('#8a6a3c',0.5));
+  if(snowCover>0.3){g.fillStyle=css(SNOW);g.fillRect(BARNX+0.5,HOR-0.3,3,1);g.fillRect(BARNX+4.5,HOR-0.3,3,1);} // snow cap, same idiom as the field bales
   if(folk[0].vis&&folk[0].chore==='hay'&&!(barnO>0.5&&tod>0.30)){ // Earl rolls one to the door
     const hbx=lerp(BARNX+18,BARNX+13,clamp((tod-0.27)/0.03,0,1));
+    shadow(hbx,HOR+2,2.3);
     circle(hbx,HOR+2,2.3,S('#c2a24e',0.5));circle(hbx,HOR+2,1,S('#8a6a3c',0.5));
   }
   // silo
+  shadow(SILOX+4.5,HOR+0.6,4); // standalone ground structure, same inline-draw blind spot the windmill/mailbox/sign fixes caught
   P(SILOX,HOR-26,9,26,'#9aa2b0');
   P(SILOX+1,HOR-25,1,24,'#b6bdc9');
   g.globalAlpha=0.25;g.fillStyle=S('#5a6070');
   for(let y=HOR-22;y<HOR;y+=5)g.fillRect(SILOX,y,9,1);
   g.globalAlpha=1;
   g.globalAlpha=0.45;g.fillStyle=S('#5a6070');g.fillRect(SILOX+7,HOR-21,1,21);g.globalAlpha=1; // ladder rail
+  g.globalAlpha=0.45;g.fillStyle=S('#5a6070');
+  for(let ry=HOR-20;ry<HOR-1;ry+=3.5)g.fillRect(SILOX+5.7,ry,3,0.8); // ladder rungs
+  g.globalAlpha=1;
   circle(SILOX+4.5,HOR-26,4.5,S('#c3c9d4'));
+  if(dl>0.5){ // the dome catches a moving sun-glint that sweeps across it through the day, same "physical peak of a continuous cycle" idiom as the windmill blade flash / sprinkler droplet
+    const sgp=clamp(1-Math.abs(tod-noonTod)/(dayFrac*0.5),0,1); // brightest at solar noon, fades toward the daylight edges
+    const sgx=clamp((tod-noonTod)*10,-3,3); // sweeps west->east across the dome face as the sun crosses
+    g.fillStyle=`rgba(255,252,224,${sgp*dl*0.45})`;
+    g.fillRect((SILOX+4.5+sgx)|0,HOR-28,1,1);
+  }
   if(snowCover>0.25){g.fillStyle=css(SNOW);g.fillRect(SILOX+1,HOR-30,7,1);}
   // the dealership
   drawDealership();
@@ -3098,6 +3316,7 @@ function draw(){
     if(ec.walk)drawWalker(ec.wx,124,['#4a5a74','#6b5644','#3d5c46'][ec.i],'#2f5f2e');
   }
   // windmill
+  shadow(WMX,HOR+0.6,3.5); // the one standalone ground structure the prop-shadow audit missed (mailbox/sign got theirs, this didn't)
   g.strokeStyle=S('#4a4f5c');g.lineWidth=1;g.beginPath();
   g.moveTo(WMX-4,HOR);g.lineTo(WMX,HOR-24);g.moveTo(WMX+4,HOR);g.lineTo(WMX,HOR-24);
   g.moveTo(WMX-2.5,HOR-8);g.lineTo(WMX+2.5,HOR-8);g.moveTo(WMX-1.5,HOR-16);g.lineTo(WMX+1.5,HOR-16);
@@ -3106,8 +3325,13 @@ function draw(){
   for(let i=0;i<6;i++){const a=mAng+i*TAU/6;
     g.moveTo(WMX,HOR-26);g.lineTo(WMX+Math.cos(a)*6,HOR-26+Math.sin(a)*6);}
   g.stroke();
+  if(dl>0.5)for(let i=0;i<6;i++){ // a blade catches a brief sun-flash swinging through the top of its turn
+    const a=mAng+i*TAU/6,k=-Math.sin(a);
+    if(k>0.82){g.fillStyle=`rgba(255,252,224,${(k-0.82)/0.18*0.55})`;g.fillRect(WMX+Math.cos(a)*4.5-0.5,HOR-26+Math.sin(a)*4.5-0.5,1,1);}
+  }
   g.fillStyle=S('#6a7080');g.fillRect(WMX-1,HOR-27,2,2);
   g.fillStyle=S('#4a4f5c');g.fillRect(WMX+1,HOR-26,4,1);g.fillRect(WMX+5,HOR-27,1,3); // tail vane
+  if(snowCover>0.25){g.fillStyle=css(SNOW);g.fillRect(WMX-1,HOR-28,2,1);} // gearbox snow cap, same idiom as mailbox/sign
   if(dl<0.25&&dayRng('owl')()<0.3){ // an owl takes the crossbar some nights
     g.fillStyle=S('#3a342c',0.4);
     g.fillRect(WMX+1,HOR-18,2,2);g.fillRect(WMX+1,HOR-19,2,1);
@@ -3120,11 +3344,32 @@ function draw(){
   g.fillStyle='rgba(10,12,20,0.14)';g.fillRect(hx-1,HOR,27,1);
   g.fillStyle=S('#5b6070');g.beginPath();
   g.moveTo(hx-2,HOR-14);g.lineTo(hx+12,HOR-22);g.lineTo(hx+26,HOR-14);g.closePath();g.fill();
+  g.fillStyle=shA(mixA(C('#5b6070'),SNOW,0.22),0.5);g.fillRect(hx+11,HOR-21,2,0.5); // ridge apex catching the light, same idiom as drawTown's own miniature replica of this roof
   P(hx+10,HOR-7,4,7,'#7a6046');
+  g.fillStyle=shA(mixA(C('#7a6046'),SNOW,0.22),0.5);g.fillRect(hx+10,HOR-7,4,1); // door top edge catching the light, same idiom as the window frames
+  g.fillStyle=shA(mixA(C('#7a6046'),NIGHT,0.28),0.55);g.fillRect(hx+10,HOR-1,4,1); // door base, shaded
   g.fillStyle=S('#e8d4a0',0.4);g.fillRect(hx+12,HOR-4,1,1); // door knob
+  { // two stone steps down from the door — the one spot underfoot that never got a detail pass
+    const stC=C('#9a9384');
+    g.fillStyle=shA(mixA(stC,SNOW,0.22),0.5);g.fillRect(hx+10,HOR,4,1);       // upper step, door-width
+    g.fillStyle=shA(mixA(stC,NIGHT,0.25),0.5);g.fillRect(hx+9.3,HOR+1,5.4,1); // lower step, flared wider
+  }
+  { // a plank bench beside the steps — Earl & Dot's evening porch-sit spot had nothing to actually sit on
+    const bC=C('#8a6a48');
+    shadow(hx+8,HOR+6.6,4.2);
+    g.fillStyle=shA(mixA(bC,SNOW,0.22),0.5);g.fillRect(hx+4,HOR+4,9,1);   // seat top, catching the light
+    g.fillStyle=shA(mixA(bC,NIGHT,0.28),0.55);g.fillRect(hx+4,HOR+5,9,1); // seat front edge, shaded
+    g.fillStyle=S('#5c4530',0.5);g.fillRect(hx+4.5,HOR+6,1,1);g.fillRect(hx+11.5,HOR+6,1,1); // two legs
+  }
   P(hx+19,HOR-21,3,6,'#8a4a42');
+  g.fillStyle=shA(mixA(C('#8a4a42'),SNOW,0.22),0.5);g.fillRect(hx+19,HOR-21,3,1); // flue top, catching the light
+  g.fillStyle=shA(mixA(C('#8a4a42'),NIGHT,0.28),0.55);g.fillRect(hx+19,HOR-16,3,1); // flue base, shaded
   P(hx+19,HOR-22,3,1,'#6e3a34');                            // chimney cap
   P(hx+2,HOR-11,6,6,'#b9b2a0');P(hx+16,HOR-11,6,6,'#b9b2a0'); // window frames
+  g.fillStyle=shA(mixA(C('#b9b2a0'),SNOW,0.22),0.5);           // frame top edge catching the light — same idiom as the steps/bench below
+  g.fillRect(hx+2,HOR-11,6,1);g.fillRect(hx+16,HOR-11,6,1);
+  g.fillStyle=shA(mixA(C('#b9b2a0'),NIGHT,0.28),0.55);         // frame sill underside, shaded
+  g.fillRect(hx+2,HOR-6,6,1);g.fillRect(hx+16,HOR-6,6,1);
   // lamps go on room by room, and somebody's up at 3am now and then
   const l1On=dl<0.5&&((tod>0.68+dayRng('l1')()*0.04&&tod<0.96)||(tod>0.2&&tod<0.3));
   const l2On=dl<0.5&&(tod>0.7+dayRng('l2')()*0.06&&tod<0.9-dayRng('l3')()*0.05);
@@ -3133,17 +3378,59 @@ function draw(){
   g.fillRect(hx+3,HOR-10,4,4);
   g.fillStyle=l2On?'#ffd98a':S('#39404f');
   g.fillRect(hx+17,HOR-10,4,4);
-  if(l1On||l3am)circle(hx+5,HOR-8,5,'rgba(255,202,106,0.13)');
-  if(l2On)circle(hx+19,HOR-8,5,'rgba(255,202,106,0.13)');
+  if(winLit>0.02){g.save();g.globalAlpha=winLit;circle(hx+5,HOR-8,5,'rgba(255,202,106,0.13)');g.restore();} // fades in/out with the room light instead of popping — same fix as the dealer sign bloom
+  if(w2Lit>0.02){g.save();g.globalAlpha=w2Lit;circle(hx+19,HOR-8,5,'rgba(255,202,106,0.13)');g.restore();} // fades in/out with the room light — same fix as winLit above
+  if(seasonIdx===1){ // a window AC unit — the room they actually keep cool through a Kansas summer
+    g.fillStyle=S('#cfd0c8',0.5);
+    g.fillRect(hx+17,HOR-7,4,2);
+    g.fillStyle=S('#8f9086',0.5);
+    g.fillRect(hx+17.5,HOR-6.5,1,1);g.fillRect(hx+19,HOR-6.5,1,1); // vent slats
+    g.fillStyle=S('#6f7368',0.3);
+    g.fillRect(hx+18.5,HOR-5,1,0.6);                               // a damp drip stain on the sill below
+  }
+  if((l1On||l3am)&&(seasonIdx===1||(seasonIdx===2&&seasonT<0.35))){ // moths drawn to the lit window on warm nights
+    for(let m=0;m<3;m++){
+      const mp=rt*(1.1+m*0.31)+m*2.1;
+      const mx=hx+5+Math.sin(mp)*3+Math.sin(mp*2.6+m)*0.8;
+      const my=HOR-8+Math.cos(mp*0.8)*2.4+Math.cos(mp*3.1+m)*0.6;
+      g.fillStyle=`rgba(230,222,190,${0.3+0.25*Math.sin(mp*4+m)})`;
+      g.fillRect(mx|0,my|0,1,1);
+    }
+  }
+  if(l2On&&(seasonIdx===1||(seasonIdx===2&&seasonT<0.35))){ // bedroom-2's window draws its own moths too — same lit-window pull as window 1
+    for(let m=0;m<3;m++){
+      const mp=rt*(1.1+m*0.31)+m*2.1+4.7;
+      const mx=hx+19+Math.sin(mp)*3+Math.sin(mp*2.6+m)*0.8;
+      const my=HOR-8+Math.cos(mp*0.8)*2.4+Math.cos(mp*3.1+m)*0.6;
+      g.fillStyle=`rgba(230,222,190,${0.3+0.25*Math.sin(mp*4+m)})`;
+      g.fillRect(mx|0,my|0,1,1);
+    }
+  }
   if(tod>0.755&&tod<0.9&&dl<0.5){ // porch light while they sit
     g.fillStyle='#ffd98a';g.fillRect(hx+12,HOR-8,1,1);
-    circle(hx+12,HOR-6,4,'rgba(255,202,106,0.10)');
   }
+  if(pLit>0.02){g.save();g.globalAlpha=pLit;circle(hx+12,HOR-6,4,'rgba(255,202,106,0.10)');g.restore();} // fades in/out with the lamp instead of popping — same fix as winLit/w2Lit
   if(seasonIdx<2){ // Dot's flowerbed
     const FC=['#e06a8a','#e8c83c','#9a6ac8'];
     for(let i2=0;i2<3;i2++){
+      const swy=Math.sin(rt*2+i2*1.7)*wind*0.015;
       g.fillStyle=S('#4e8a3f',0.6);g.fillRect(hx+22+i2*2,HOR-1,1,1);
-      g.fillStyle=S(FC[i2],0.5);g.fillRect(hx+22+i2*2,HOR-2,1,1);
+      g.fillStyle=S(FC[i2],0.5);g.fillRect(hx+22+i2*2+swy,HOR-2,1,1);
+    }
+  }
+  if(seasonIdx<2){ // the wash, strung out to dry in the spring/summer breeze
+    const fw3=clamp(wind/40,0,1),lnx1=hx-11,lnx2=hx-2,lny=HOR-8;
+    g.fillStyle=S('#8a8378',0.5);
+    g.fillRect(lnx1,lny,1,9);g.fillRect(lnx2,lny,1,9);           // two posts
+    g.fillStyle=S('#c3c9d4',0.4);g.fillRect(lnx1,lny,lnx2-lnx1+1,1); // the line
+    const GC=['#e7e2d6','#5a6a8c','#6a8a8c'];                    // sheet, Earl's shirt, Dot's
+    const hung=tod<0.27?0:tod<0.28?1:tod<0.29?2:3;                // she pins them up one at a time on her morning pass
+    for(let i3=0;i3<hung;i3++){
+      const gx=lnx1+2+i3*3,ph3=i3*2.1;
+      const sway=Math.sin(rt*(1.3+wind*0.08)+ph3)*(0.35+fw3*0.85);
+      g.fillStyle=S(GC[i3],0.55);
+      g.fillRect(gx+sway*0.4,lny+1,2,2);                         // shoulders, pinned near the line
+      g.fillRect(gx+sway,lny+3,2,3);                             // hem, swings freer
     }
   }
   if(holiday){
@@ -3163,7 +3450,12 @@ function draw(){
       if(age<=0.02)continue;
       const sx4=hx+26+i2*6,hh=Math.min(7,2+age*3.2)|0;
       P(sx4,HOR-hh,1,hh,'#5a4632');
-      if(seasonIdx!==3)circle(sx4+0.5,HOR-hh-1.5,Math.min(4,1.5+age*1.2),shA(spal('tree'),0.68));
+      if(seasonIdx!==3){
+        const cr=Math.min(4,1.5+age*1.2);
+        const swx4=Math.sin(rt*0.7+sx4*0.31)*Math.min(1.1,wind*0.028)*(cr/6); // canopies breathe in the wind, same idiom as tree()
+        circle(sx4+0.5+swx4,HOR-hh-1.5,cr,shA(spal('tree'),0.68));
+        circle(sx4+0.5-cr*0.3+swx4,HOR-hh-1.5-cr*0.3,cr*0.4,shA(mixA(spal('tree'),C('#f4f0d8'),0.22),0.68));
+      }
     }
   }
   // October pumpkins, and a jack-o-lantern on the night itself
@@ -3174,16 +3466,18 @@ function draw(){
     }
     const hallo=live?liveDate.getDate()===31:seasonT>0.9;
     if(hallo&&dl<0.4){
+      const fk=0.75+0.25*Math.sin(rt*9+hx)*Math.sin(rt*3.3+hx*0.7); // candle flicker, same idiom as the welder arc / KEATING fire / tail-rotor stutter
       g.fillStyle='#1a0e08';g.fillRect(hx+2,HOR-2,1,1);
-      circle(hx+3,HOR-1,3,'rgba(255,150,50,0.18)');
+      circle(hx+3,HOR-1,3,`rgba(255,150,50,${(0.18*fk).toFixed(3)})`);
     }
   }
-  if(snowCover>0.25){g.fillStyle=css(SNOW);g.fillRect(hx-2,HOR-15,10,1);g.fillRect(hx+16,HOR-15,10,1);}
+  if(snowCover>0.25){g.fillStyle=css(SNOW);g.fillRect(hx-2,HOR-15,10,1);g.fillRect(hx+16,HOR-15,10,1);g.fillRect(hx+10,HOR-22,4,1);} // ridge apex too, same idiom as the barn's ridge-cap snow
   for(let i=1;i<TREES.length;i++)tree(TREES[i].x,TREES[i].big);
 
   // snowman, deer, and dealership customers
   if(snowman&&snowman.b>0.05){
     const s2=snowman.b,sx2=HX-2,sy2=HOR+8;   // on the open lawn, clear of the parked tractor
+    shadow(sx2,sy2,2.6*s2);                  // grows with him, same footprint as the base ball
     circle(sx2,sy2-2*s2,2.6*s2,S('#eef2f8',0.5));
     circle(sx2,sy2-5.5*s2,1.8*s2,S('#eef2f8',0.5));
     if(s2>0.6){
@@ -3199,6 +3493,7 @@ function draw(){
     const walkb=deer.ph===1?0:Math.abs(Math.sin(deer.x*1.15))*0.5;   // gait bob keyed to ground covered
     const dx3=deer.x,dy3=HOR+3-walkb;                                // fractional x — the |0 snap made it tick, not walk
     const graze=deer.ph===1&&Math.sin(rt*2.2)>0.2;
+    shadow(dx3+0.5,HOR+3,2.4);
     g.fillStyle=S('#a3794f',0.55);
     g.fillRect(dx3-3,dy3-4,6,2);
     g.fillRect(dx3-3,dy3-2,1,2);g.fillRect(dx3+2,dy3-2,1,2);
@@ -3206,7 +3501,9 @@ function draw(){
     g.fillRect(dx3+3,hy2,1,graze?1:2);
     g.fillRect(dx3+4,hy2,1,1);
     if(!graze)g.fillRect(dx3+3,hy2-1,1,1);
-    g.fillStyle=S('#e8e0d0',0.55);g.fillRect(dx3-4,dy3-4,1,1);
+    g.fillStyle=S('#1a1712',0.55);g.fillRect(dx3+4,hy2,0.6,0.6);   // eye, same idiom as drawCow
+    const tf3=Math.sin(rt*(deer.ph===2?6:3)+dx3*0.4)*(deer.ph===2?0.7:0.35); // tail flick, flags harder while spooked
+    g.fillStyle=S('#e8e0d0',0.55);g.fillRect(dx3-4,dy3-4,1,1+tf3);
   }
   if(rabbit){
     const rx=rabbit.x,ry=HOR+2,D=rabbit.dir;                        // fractional — the hop arc was computed smooth then rounded away
@@ -3217,7 +3514,8 @@ function draw(){
     g.fillRect(rx-1,ry-2-hop,3,2);                             // body
     g.fillRect(rx+D*1.6,ry-2-hop+(nib?1:0),1,1);              // head
     g.fillRect(rx+D*1.6,ry-4-hop+(nib?1:0),1,2-(nib?1:0));    // ears (fold when nibbling)
-    g.fillStyle=S('#e8e2d4',0.6);g.fillRect(rx-D*1.6,ry-1-hop,1,1); // cotton tail
+    const tf4=Math.sin(rt*3+rx*0.4)*0.35; // tail flick, same idiom as the deer's (no alarm hook — ph2 covers routine exits too)
+    g.fillStyle=S('#e8e2d4',0.6);g.fillRect(rx-D*1.6,ry-1-hop,1,1+tf4); // cotton tail
   }
   if(pheasant){
     const p=pheasant,x=p.x,y=p.y,D=p.dir;                           // fractional glide like everything else
@@ -3232,14 +3530,15 @@ function draw(){
     }else{                                                         // strutting the edge, pecking
       shadow(x+0.5,y,2.2);
       const peck=p.pk>0&&Math.abs(p.tx-p.x)<1.5&&Math.sin(rt*4)>0;
+      const stepj=Math.abs(p.tx-p.x)>1.5?Math.max(0,Math.sin(p.x*2.8))*0.5:0; // head-jab on the move, same idiom as drawHens
       g.fillStyle=S('#7a4a28',0.6);g.fillRect(x-D*3.4,y-2.6,3.6,1.1);// long sweeping tail
       g.fillStyle=S('#9a6a3c',0.6);g.fillRect(x-1,y-3,3,2);        // coppery body
       g.fillStyle=S('#b07a44',0.55);g.fillRect(x-D*0.5,y-3.4,1.6,0.8);// back sheen
       const hy=peck?y-2:y-5;
-      g.fillStyle=S('#245a3a',0.6);g.fillRect(x+D*1.3,hy,1,peck?2:3);// green neck
-      g.fillStyle=S('#243038',0.6);g.fillRect(x+D*1.7,hy-0.6,1.4,1.4);// dark head
-      g.fillStyle=S('#c03030',0.5);g.fillRect(x+D*1.7,hy-0.9,1.4,0.7);// red face
-      g.fillStyle=S('#e8e4dc',0.6);g.fillRect(x+D*1.1,hy+0.7,0.7,0.5);// white ring
+      g.fillStyle=S('#245a3a',0.6);g.fillRect(x+D*(1.3+stepj),hy,1,peck?2:3);// green neck
+      g.fillStyle=S('#243038',0.6);g.fillRect(x+D*(1.7+stepj),hy-0.6,1.4,1.4);// dark head
+      g.fillStyle=S('#c03030',0.5);g.fillRect(x+D*(1.7+stepj),hy-0.9,1.4,0.7);// red face
+      g.fillStyle=S('#e8e4dc',0.6);g.fillRect(x+D*(1.1+stepj),hy+0.7,0.7,0.5);// white ring
       g.fillStyle=S('#3a3228',0.6);g.fillRect(x-1,y-1,0.7,1);g.fillRect(x+1,y-1,0.7,1);// legs
     }
   }
@@ -3258,6 +3557,7 @@ function draw(){
 
   // fences (split around the dealership)
   fenceRun(HX+32,DX-12);
+  drawMailbox(MBX);
   if(WMX-10>LOTX2+6)fenceRun(LOTX2+6,WMX-10);
   if(VFWX-20>WMX+8)fenceRun(WMX+8,VFWX-20);
 
@@ -3271,6 +3571,26 @@ function draw(){
       g.fillRect(gx2+((gx2*7)%3)-1+sway,HOR-1,1,2);
     }
   }
+  // a garden sprinkler ticks across the front lawn some summer mornings
+  if(seasonIdx===1&&weather<0.35&&dayRng('spr')()<0.32){
+    const spa=0.25+dayRng('spr2')()*0.08;                        // 6:00-7:55am start
+    if(tod>spa&&tod<spa+0.024){
+      const spx=HX+7,spy=HOR;
+      const ang=Math.sin(rt*1.7)*0.85;                           // the head ticks side to side
+      g.fillStyle=S('#5a6070',0.5);g.fillRect(spx,spy-1,1,1);     // the head, low in the grass
+      for(let k=0;k<4;k++){
+        const ph=(rt*2.1+k*0.23)%1;
+        const a=ang+(k-1.5)*0.1;
+        const dxx=spx+Math.sin(a)*ph*6,dyy=spy-1-Math.sin(ph*Math.PI)*3;
+        g.fillStyle=`rgba(160,205,230,${0.55*(1-ph)})`;
+        g.fillRect(dxx|0,dyy|0,1,1);
+        if(dl>0.55&&ph>0.35&&ph<0.55){ // full morning sun catches the mist right at the peak of its arc
+          g.fillStyle=`rgba(${k%2?'232,150,120':'150,210,180'},${0.3*(1-Math.abs(ph-0.45)*8)})`;
+          g.fillRect(dxx|0,(dyy-1)|0,1,1);
+        }
+      }
+    }
+  }
   // planted yard signs sit on the ground — drawn after the lawn but before the movers, so folk and vehicles pass in front
   if(sagaSigns){drawSign(HX+16,126);drawSign(VFWX-22,125);drawSign(DX-18,126);}
   // chickens — split into two depth passes: barnyard hens here (behind the field), and
@@ -3282,6 +3602,7 @@ function draw(){
       const peck=Math.sin(c.pk)>0.3&&Math.abs(c.tx-c.x)<=1.5;
       const stepj=Math.abs(c.tx-c.x)>1.5?Math.max(0,Math.sin(c.x*2.8))*0.6:0; // the signature hen head-jab, keyed to ground covered
       const hx2=(c.d>0?c.x+3:c.x-1)+c.d*stepj, hy=peck?c.y-3:c.y-5;
+      shadow(c.x+0.5,c.y,1.6);
       P(c.x,c.y-3,3,2,'#f2f0e8',0.6);
       P(c.x-c.d,c.y-4,1,1,'#f2f0e8',0.6);
       P(hx2,hy,1,2,'#f2f0e8',0.6);
@@ -3297,11 +3618,13 @@ function draw(){
     P(YARDX-6,123,13,2,'#b5484a');                               // the blanket
     P(YARDX-6,123,13,1,'#c96a5a',0.7);                           // a lighter check
     P(YARDX+4,121,3,2,'#a5763c');                                // the picnic basket
+    g.fillStyle=shA(mixA(C('#a5763c'),SNOW,0.22),0.5);g.fillRect(YARDX+4,121,3,1); // lid catching the light, same idiom as the steps/bench
   }
   // the people and the dog
   for(const f of folk)drawFolk(f);
   drawDog();
   if(weld&&folk[2].vis&&Math.abs(folk[2].x-(DX+38))<3)drawWeld(DX+41,HOR-1); // Manny's arc, once he's hunched at the bench
+  if(coldOut&&folk[2].vis&&folk[2].sit&&tod>0.5&&tod<0.53)drawMannyCoffee(folk[2].x,folk[2].y); // his coffee on the bay step
   // Wade's bike, the thrown ball, and the family wagon — all in front of the folk
   if(bikeRide)drawBike(bikeRide.x,126,'#c94a3c',true,bikeRide.mode==='practice'?1:0); // rider always shown — Wade straddles his bike to look at the lot
   if(yardPlay&&ball){
@@ -3311,23 +3634,33 @@ function draw(){
   // chore details: scattered feed near Earl, and Dot's watering can
   {const fm=folk[0];
    if(fm.vis&&fm.chore==='feed'){g.fillStyle=S('#d8c060',0.6);
-     for(let k=0;k<4;k++)g.fillRect(fm.x+((k*7)%9)-4,fm.y+((k*3)%2),1,1);}}
+     for(let k=0;k<4;k++)g.fillRect(fm.x+((k*7)%9)-4,fm.y+((k*3)%2),1,1);}
+   if(fm.vis&&fm.chore==='water')for(let k=0;k<4;k++){
+     const ph=(rt*1.5+k*0.25)%1;                                   // an arc of water topping the stock tank
+     const dxx=lerp(fm.x+2,HX+24,ph),dyy=lerp(fm.y-4,HOR-2,ph)-Math.sin(ph*Math.PI)*3;
+     g.fillStyle=`rgba(150,200,225,${0.7*(1-ph)})`;g.fillRect(dxx|0,dyy|0,1,1);
+   }}
   {const dw=folk[4];
    if(dw.vis&&dw.chore==='water')for(let k=0;k<4;k++){
      const ph=(rt*1.5+k*0.25)%1;                                   // an arc of water onto the flowerbed
      const dxx=lerp(dw.x+2,HX+22,ph),dyy=lerp(dw.y-4,HOR-2,ph)-Math.sin(ph*Math.PI)*3;
      g.fillStyle=`rgba(150,200,225,${0.7*(1-ph)})`;g.fillRect(dxx|0,dyy|0,1,1);
-   }}
+   }
+   if(dw.vis&&dw.chore==='laundry'){g.fillStyle=S('#c9a985',0.5);g.fillRect(dw.x-dw.dir*2-0.5,dw.y-1,2,1.3);} // wicker basket of wash at her feet
+  }
   // Gus on the fence rail
   if(cat.vis){
-    const cy6=HOR-5,cx6=cat.x;
+    const pc=cat.pounce,pp=pc>0?1-pc/1.6:0,leap=pc>0?Math.sin(Math.min(1,pp)*Math.PI)*4:0; // rare mouse-pounce: down off the rail and back
+    const cy6=HOR-5+leap,cx6=cat.x+cat.dir*leap*0.4;
+    if(leap>0.3)shadow(cx6+1,HOR-0.5,Math.min(1,leap/4)*1.3);
     g.fillStyle=S('#2e2a28',0.5);
     g.fillRect(cx6,cy6-1.5,3.4,1.5);
     g.fillRect(cx6+(cat.dir>0?3.2:-1.2),cy6-2.6,1.2,1.4);
     g.fillRect(cx6+(cat.dir>0?3.2:-1.2),cy6-3.2,0.5,0.7);
     g.fillRect(cx6+(cat.dir>0?3.9:-0.6),cy6-3.2,0.5,0.7);
     g.fillRect(cx6+(cat.dir>0?-1:3.6),cy6-2.6,0.8,1);
-    g.fillRect(cx6+(cat.dir>0?-1.5:4.2),cy6-3.4,0.7,1);
+    const tfc=Math.sin(rt*3+cx6*0.4)*0.4; // tail flick, same idiom as drawCow/hillCows/deer/rabbit
+    g.fillRect(cx6+(cat.dir>0?-1.5:4.2),cy6-3.4,0.7,1+tfc);
     if(dl<0.12&&((rt*0.7|0)%5)!==0){g.fillStyle='#7ad07a';
       g.fillRect(cx6+(cat.dir>0?3.4:-1),cy6-2.4,0.9,0.5);}
   }
@@ -3343,13 +3676,26 @@ function draw(){
     g.beginPath();g.arc(x+5,y-1.5,0.7,0,TAU);g.fill();
     P(x-10,y-8,21,6,'#ecc23e');
     P(x-10,y-8,21,1,'#f4d054');
+    g.fillStyle=shA(mixA(C('#ecc23e'),NIGHT,0.3),0.72);g.fillRect(x-10,y-3,21,1); // body shade at the sill, same sandwich idiom as drawTruck/drawCart/drawSprayer
     g.fillStyle=S('#cfe0ea',0.5);g.fillRect(x-8,y-7,15,2);
     g.fillStyle=S('#b09232',0.5);                 // window mullions
     for(let i5=0;i5<3;i5++)g.fillRect(x-5+i5*4,y-7,0.8,2);
+    if(dl>0.5){                                   // daylight glass glint, same treatment as drawTruckSm/drawCar/drawPickup, scaled to this window's 15x2 band
+      g.beginPath();g.moveTo(x-4.7,y-7);g.lineTo(x-2,y-7);g.lineTo(x-5.6,y-5);g.lineTo(x-8,y-5);g.closePath();
+      g.fillStyle='rgba(255,255,255,0.14)';g.fill();
+    }
     P(x-10,y-4,21,1,'#3a3a34');
     P(x+10,y-8,1,4,'#c9a52e');
+    if(dl<0.3){                                   // night headlight+taillight, same idiom as drawTruckSm/drawCar/drawPickup
+      g.fillStyle='rgba(255,230,150,0.7)';g.fillRect(x+10.4,y-4.4,1,1);
+      g.fillStyle='rgba(255,230,150,0.08)';g.fillRect(x+11.4,y-5.4,10,3);
+      g.fillStyle='rgba(255,90,80,0.7)';g.fillRect(x-10.6,y-4.4,0.6,0.8);
+    }
     if(bus.ph===1){
       g.fillStyle=((rt*4|0)%2)?'#ff4040':'#7a1a1a';g.fillRect(x-10,y-9,1,1);
+      const arm=Math.min(1,bus.t/0.4,(3-bus.t)/0.4);                 // stop-sign arm: swings out, holds, swings back in
+      g.fillStyle=S('#7a1a1a',0.6);g.fillRect(x-10-arm*3,y-3,arm*3,0.6);
+      g.fillStyle=S('#c9302a',0.85);g.fillRect(x-10.5-arm*3,y-3.8,1.2,1.2);
       const pp2=Math.min(1,bus.t/2.2);
       const kx=lerp(HX+12,x+8,pp2);
       g.fillStyle=S('#3a5a8c',0.55);g.fillRect(kx,y-2,1,2);
@@ -3357,11 +3703,14 @@ function draw(){
       g.fillStyle=S('#c9a985',0.5);g.fillRect(kx,y-5,1,1);
     }
   }
+  // the mail carrier, on the same road line as the bus
+  if(mailTruck)drawTruckSm(mailTruck.x,124,'#d9d2bc',1);
   // yard signs & the picket line
   if(protest)for(const p of protest.arr){
     const px7=p.x,py7=126,bob=Math.sin(rt*2+p.ph);
     shadow(px7+0.5,py7,2.1);
-    g.fillStyle=S('#3a4252',0.55);g.fillRect(px7-1,py7-3,1,3);g.fillRect(px7+1,py7-3,1,3);
+    const lsw7=Math.sin(px7*0.9)*0.4; // leg scissor keyed to ground covered, same idiom as drawWalker
+    g.fillStyle=S('#3a4252',0.55);g.fillRect(px7-1+lsw7,py7-3,1,3);g.fillRect(px7+1-lsw7,py7-3,1,3);
     g.fillStyle=S(p.shirt,0.58);g.fillRect(px7-1,py7-6,3,3);
     g.fillStyle=S('#c9a985',0.52);g.fillRect(px7-0.5,py7-8,2,2);
     g.fillStyle=S(p.cap,0.55);g.fillRect(px7-0.6,py7-8.8,2.2,1);
@@ -3372,7 +3721,8 @@ function draw(){
   }
   // rain leaves its mark for a while
   if(puddleT>0.05){
-    g.fillStyle=`rgba(150,180,215,${0.28*puddleT})`;
+    const pc=mixA(ghK>0.01?mixA(C('#96b4d7'),GOLD,ghK):C('#96b4d7'),NIGHT,(1-dl)*0.6); // graded like every other ground surface, not a flat literal
+    g.fillStyle=`rgba(${pc[0]|0},${pc[1]|0},${pc[2]|0},${0.28*puddleT})`;
     g.fillRect(DX+8,HOR+6,7,1);g.fillRect(DX+40,HOR+3,5,1);
     g.fillRect(VFWX-8,HOR+4,6,1);g.fillRect(BARNX+20,HOR+2,5,1);
   }
@@ -3484,6 +3834,7 @@ function draw(){
       if(b.r!==r)continue;
       if(r===0&&((b.x>LOTX1&&b.x<LOTX2)||(b.x>VFWX-20&&b.x<VFWX+54)))continue;
       const byy=y-2.6*sc-(b.ry||0);
+      shadow(b.x,y,2.6*sc);
       circle(b.x,byy,2.6*sc,S('#c8a058',0.65));
       g.strokeStyle=S('#8a6a38',0.65);g.lineWidth=1;
       g.beginPath();g.arc(b.x,byy,2.6*sc,0,TAU);g.stroke();
@@ -3502,7 +3853,7 @@ function draw(){
     }
     if(combine&&Math.min(combine.row,ROWS-1)===r){
       const cs2=0.5+ROWSC[r]*0.55;
-      drawCombine(combine.x,ROWY[r],cs2,combine.dir);
+      drawCombine(combine.x,ROWY[r],cs2,combine.dir,dl<0.35?false:'red'); // Earl (red cap) in the cab by day; riderless on the autonomous night shift
       if(dl<0.35&&!combine.leave)workLights(combine.x,ROWY[r],cs2,combine.dir,false);
     }
     if(sprayer&&sprayer.row===r)drawSprayer(sprayer.x,ROWY[r],0.5+ROWSC[r]*0.55,sprayer.dir);
@@ -3514,7 +3865,8 @@ function draw(){
     const crow=Math.min(combine.row,ROWS-1),cs3=0.5+ROWSC[crow]*0.55;
     const ax4=combine.x-combine.dir*16*cs3,ay4=ROWY[crow]-19*cs3;
     const cx5=tract.x-tract.dir*15*tract.s,cy5=tract.y-9*tract.s;
-    g.fillStyle='rgba(232,200,60,0.9)';
+    const gc4=mixA(ghK>0.01?mixA(C('#e8c83c'),GOLD,ghK):C('#e8c83c'),NIGHT,(1-dl)*0.6); // graded like every other ground/particle color, not a flat literal
+    g.fillStyle=`rgba(${gc4[0]|0},${gc4[1]|0},${gc4[2]|0},0.9)`;
     for(let i2=0;i2<9;i2++){
       const t3=((i2+rt*6)%9)/9;
       const gx=lerp(ax4,cx5,t3),gy=lerp(ay4,cy5,t3)-Math.sin(t3*Math.PI)*5;
@@ -3558,8 +3910,12 @@ function draw(){
     }
   }
   for(const t of tumbles){
+    shadow(t.x,t.y+t.r*0.6,t.r*0.85);
     g.strokeStyle=S('#a8925a',0.55);g.lineWidth=1;
     g.beginPath();g.arc(t.x,t.y,t.r,0,TAU);g.stroke();
+    g.strokeStyle=S('#6e5c38',0.5);              // shaded far side of the tangled ball — sells it as a rolling sphere, not a flat ring
+    g.beginPath();g.arc(t.x,t.y,t.r*0.98,t.a+1.15,t.a+1.15+Math.PI*0.85);g.stroke();
+    g.strokeStyle=S('#a8925a',0.55);
     g.beginPath();
     g.moveTo(t.x-t.r*Math.cos(t.a),t.y-t.r*Math.sin(t.a));
     g.lineTo(t.x+t.r*Math.cos(t.a),t.y+t.r*Math.sin(t.a));
@@ -3589,6 +3945,8 @@ function draw(){
   // weather & ambient particles
   if(drops.length){g.fillStyle='rgba(165,195,235,0.55)';
     for(const p of drops)g.fillRect(p.x|0,p.y|0,1,3);}
+  for(const p of splashes){g.strokeStyle=`rgba(200,222,245,${0.5*(p.life/p.max)})`;
+    g.beginPath();g.arc(p.x,p.y,(1-p.life/p.max)*1.6,0,TAU);g.stroke();}
   if(flakes.length){g.fillStyle='rgba(240,245,252,0.85)';
     for(const p of flakes)g.fillRect(p.x|0,p.y|0,1,1);}
   for(const p of leaves){g.fillStyle=S(p.c,0.5);g.fillRect(p.x|0,p.y|0,1,1);}
