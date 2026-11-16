@@ -77,6 +77,10 @@ key('U'); step(1600);                               // mid-day cattle abduction:
 console.log('cow abduction ran');
 key('G'); step(1600);                               // the prairie lizard rises, roars, and is escorted off by helicopters
 console.log('kaiju ran');
+key('4'); step(200); key('S'); step(2600);           // winter: a snowman horde marches in, snowball fight, marches off
+console.log('snowman horde ran');
+key('M'); step(2600);                               // the giant snowman heaves up beside Keating, waves, sinks away
+console.log('mega snowman ran');
 for (const k of ['a','o','x','v','g','y','i','8']) key(k); // aurora, comet, rocket, meteor shower, crop circle, eclipse, satellite, blood moon
 step(2400);                                  // full eclipse transit + rocket plume fade
 console.log('strange sky ran');

@@ -48,7 +48,7 @@ namespace ApplebeeAcres
 
     internal static class Program
     {
-        public const string Version = "1.3-heal";
+        public const string Version = "1.4-snow";
 
         [STAThread]
         private static void Main(string[] args)

@@ -72,6 +72,20 @@ Representative rolls (see `onNewDay()`):
 | Cattle graze | 35% | daytime | late-summer/winter stubble |
 | Sale, train, crop-duster, family scenes, … | various | various | see `onNewDay()` |
 
+### 3a-bis. Timer events — the snow folk ❄️
+Not daily rolls: these run on their own countdowns (`hordeT`, `megaT`) so people actually
+see them during the cold months. Gate = `snowFolkOK()`: daylight (`dl>=0.3`) **and** either
+real snow down (`snowCover>0.3`) or the snowman season (live: ~Nov 10 → Mar 10, skipped if
+Liberal is above 65°F; sim: winter + late autumn).
+
+| Event | First after boot | Then every | What happens |
+|---|---|---|---|
+| **Snowman horde** | 2–7 min | 20–45 min | 10–18 snowmen (more on wide screens) hop across field rows 1–3. 40% `meet` (two gangs converge), ~43% `split` (the gang falls out mid-march), ~17% `march` (just passing through). Fights last 18–32 s: snowballs arc, hits puff, ~13% of hits knock a head off (he plops it back on), then they cheer and march off. Skips if cattle/combine/tractor/fire/duck hunt are on the field. |
+| **Mega snowman** | 7–22 min | 40–90 min | A giant (2× the store) heaves up out of a drift just east of the Keating lot, hooks the sign corner with one arm, waves 30–46 s, sinks back. Keating green/yellow scarf; Santa hat in December (snowmen get Santa hats too). Skips during kaiju/cow abduction/Keating fire. |
+
+**White Christmas:** live mode floors `snowCover` at 0.62 from Dec 20–26, whatever the
+forecast — eases in like a snowfall, and the family's yard snowman follows.
+
 Because a daily-roll event is **one coin flip per real day** in a **narrow window**, a
 rare one (2–10%) is effectively never caught by a human unless they happen to be
 watching that afternoon. That is by design, not a bug.
@@ -120,6 +134,7 @@ while it's the active OS screensaver (any key dismisses a live screensaver).
 | `k` | Keating network-down fire | `C` | Cattle herd |
 | `e` | Deer | `n` | Train |
 | `s` | Lot sale | `m` | Snowman |
+| `S` | Snowman horde + snowball fight | `M` | Mega snowman by the store |
 | `r` | Rainbow | `c` | Crop duster |
 | `a` | Aurora | `v` | Meteor shower |
 | `o` | Comet | `y` | Eclipse |

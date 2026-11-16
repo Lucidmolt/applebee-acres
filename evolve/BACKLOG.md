@@ -36,6 +36,100 @@ Polish / realism:
   very light touch that doesn't imply new markings.
 ## Changelog
 (most recent first — the evolve agent appends here)
+- 2026-08-21 — Followed up the explicit runner-up note left by 2026-08-20 #4:
+  `drawTruckSm` (applebee-acres.html:2502-2504) had the identical flat-tire
+  gap that `drawCar` was just fixed for — two flat `#22242c` tire discs
+  (`arc(-3,-2,2.1,...)`/`arc(4,-2,2.1,...)`) with no hub/rim color layering,
+  unlike `drawBus` (2-ring), `drawTractorAt`/`drawCombine`/`drawSprayer`
+  (3-ring gold hub), and `drawTruck`/`drawSemi`/`drawPickup`/`drawCar`
+  (3-ring chrome hub). Verified directly against source (both drawTruckSm
+  and the freshly-shipped drawCar fix at 2313-2315) before shipping — no
+  agent delegation needed, the prior run had already pinpointed the exact
+  lines. Added `g.fillStyle=S('#4a4e58');` plus two hub `arc()` calls at the
+  same wheel centers, radius 0.7 (drawTruckSm's tire radius 2.1 is closest to
+  drawBus's 2, so reused drawBus's exact hub radius rather than drawCar's
+  0.65, which was scaled for a smaller 1.8 tire). Zero new state, no
+  Math.random, no timing change. Exercisable now (drawTruckSm renders
+  regularly — dealership/staff pickups use it). Smoke OK, both builds green
+  (mac .saver + Windows .scr, dotnet clean aside from the pre-existing
+  WindowsBase version-conflict warning), kit+zip refreshed, index.html
+  re-synced (byte-identical, verified). NOT committed (same overdue-review-
+  session backlog spanning 07-22 onward).
+- 2026-08-20 #4 — With every closed decorative family still closed (see
+  earlier entries for the full list), an Explore agent found a fresh,
+  previously-unaddressed micro-detail: `drawCar`'s wheels (~line 2310-2312)
+  are two flat `#22242c` tire-black discs with no hub/rim color layering,
+  while every other wheeled vehicle in the file — `drawBus` (~line 3674-3679,
+  tire+hub 2-ring), `drawTractorAt`/`drawCombine`/`drawSprayer` (tire+rim+
+  gold hub, 3-ring), `drawTruck`/`drawSemi`/`drawPickup` (tire+rim+chrome
+  hub, 3-ring) — marks the wheel center with a second fillStyle. Not the
+  same as the closed two-tone/sun-catch family (that's body-panel roof/
+  undercarriage shading) or rotating-mechanism (static color layering, not
+  motion) — a distinct, never-addressed wheel-hub detail. Verified directly
+  against source (drawCar 2307-2326, drawBus 3674-3679) before shipping, not
+  just the agent's report. `drawCar` is one of the most-drawn sprites in the
+  file (staff cars, famCar, sale customers, visitors, empCars) and already
+  carries every other decorative layer (roof highlight, glass glint,
+  headlight/glow-beam/taillight) — this was the one remaining flat spot.
+  Added, matching the bus's simpler 2-ring treatment (drawCar's tire radius
+  1.8 is close to the bus's 2, same visual weight, hub radius scaled to the
+  bus's ~0.35 ratio): `g.fillStyle=S('#4a4e58');
+  g.beginPath();g.arc(-3,-1.6,0.65,0,TAU);g.fill();
+  g.beginPath();g.arc(3.2,-1.6,0.65,0,TAU);g.fill();` right after the two
+  tire-black arcs, before the body `P()` call. Zero new state, no
+  Math.random, no timing change. Exercisable now (any car, any time of day).
+  Smoke OK, both builds green (mac .saver + Windows .scr, dotnet clean aside
+  from the pre-existing WindowsBase version-conflict warnings), kit+zip
+  refreshed, index.html re-synced (byte-identical, verified). NOT committed
+  (same overdue-review-session backlog). Runner-up noted for next time:
+  `drawTruckSm` (~line 2499-2501) has the identical flat-tire gap — same
+  fix, not done this run to keep to one change.
+- 2026-08-20 #3 — With every closed decorative family still closed, an
+  Explore agent found the freight train's own locomotive (inline `if(train)
+  {...}` block, applebee-acres.html:3170-3173) was missing the roof-
+  highlight/undercarriage-shade two-tone treatment that its own box cars —
+  drawn three lines above it in the exact same block (3162-3169) — already
+  carry: `shA(mixA(carC,SNOW,0.22),0.5)` on the top row,
+  `shA(mixA(carC,NIGHT,0.3),0.72)` on the bottom row. The engine's body fill
+  (`HOR-6,12,5`) went straight to a flat `shA(C('#3a4048'),0.6)` fill plus a
+  mid-body yellow paint stripe at `HOR-3`, with no highlight/shade rows at
+  all — a real asymmetry sitting three lines from its own sibling
+  implementation, in the same inline block prior sweeps already touched
+  twice (windmill snow-cap, caboose taillight) without ever checking the
+  engine itself. Verified directly against source before shipping. Added
+  the roof highlight at `HOR-6` (top row) and undercarriage shade at
+  `HOR-2` (bottom row) — neither collides with the existing stripe at
+  `HOR-3` — using the cars' identical `shA(mixA(...))` idiom, engine's own
+  `#3a4048` body color. Zero new state, no Math.random, no timing change.
+  Exercisable now via the `n` demo key or natural train spawns. Smoke OK,
+  both builds green (mac .saver + Windows .scr, dotnet clean aside from the
+  pre-existing WindowsBase version-conflict warnings), kit+zip refreshed,
+  index.html re-synced (byte-identical, verified). NOT committed (same
+  overdue-review-session backlog).
+- 2026-08-20 #2 — With the leg-scissor-gait family already marked closed
+  (drawWalker, drawHunter, drawFolk, hillCows, protest picketers), an
+  Explore agent found the dealership `sale` event's walking customer
+  (inline `if(sale.ph===1){...}` block, applebee-acres.html:3547-3555) was
+  never checked — a near-verbatim hand-copy of `drawWalker`'s body plan
+  (same leg/torso/head/cap rect layout and colors) that walks several
+  seconds toward the parked sale pickup (`px3` genuinely animates via
+  `lerp(sale.x-6,DX+58,...)`) but had two fully static leg rects, unlike
+  drawWalker (line 2329), drawHunter, drawFolk, and the protest picketers,
+  which all scissor their legs with `Math.sin(x*0.9)*0.4` keyed to ground
+  covered. Same class of miss as the recurring "inline block hand-copies a
+  drawX() sibling but skips the sweep" pattern (bus/fire truck/train/
+  windmill/protest picketers/deer eye-pixel). Verified both sides directly
+  before shipping (line 3551 vs. drawWalker 2329-2330). Added
+  `const lsw3=Math.sin(px3*0.9)*0.4;` and offset both leg fillRects by
+  `+lsw3`/`-lsw3`, using the block's own existing `px3`. Zero new state, no
+  Math.random, no timing change. Exercisable now — `sale` has no season
+  gate, only a daytime/non-Sunday-random spawn check. Smoke OK, both builds
+  green (mac .saver + Windows .scr, dotnet clean aside from the
+  pre-existing WindowsBase version-conflict warnings), kit+zip refreshed,
+  index.html re-synced (byte-identical, verified). NOT committed (evolve
+  doesn't commit/push itself — uncommitted work continues to span 07-22
+  onward across many runs; a review/commit/push/redeploy session remains
+  genuinely overdue).
 - 2026-08-20 — With the eye-pixels family already marked closed, an Explore
   agent re-checked it directly and found it only covers `drawCow` (line
   2178/2183, dark `#1a1712` eye dropped on both the grazing and alert head

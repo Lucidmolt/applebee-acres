@@ -104,6 +104,8 @@ let pheasant=null,pheasantAt=-1; // a rooster pheasant works the field edge, flu
 let cattle=null,cattleAt=-1; // a small herd grazes the STUBBLE field (autumn/winter) and drifts across; spooks off if a machine works the field
 let cowUfo=null,cowUfoAt=-1; // the OTHER ufo: rare mid-day saucer over the far hills lifts a hill cow — she's returned to her patch a few minutes later, none the wiser
 let kaiju=null,kaijuAt=-1;   // rarer still: a giant prairie lizard rises behind the ridge and eyes the town — helicopters buzz him off before he gets anywhere near it (generic kaiju on purpose: it's a business display, not a Toho license)
+let horde=null,sballs=[],sPuffs=[],hordeT=120+Math.random()*300; // the cold months: a horde of snowmen hops across the field, and as often as not a snowball fight breaks out (first one 2-7 min after boot, then every 20-45 min)
+let mega=null,megaT=420+Math.random()*900;                         // ...and here and there a giant snowman heaves up out of the snow beside Keating and waves (first 7-22 min after boot, then every 40-90 min)
 let mailTruck=null,mailAt=-1,mbFlag=false; // the mail carrier passes on weekday late mornings; the roadside mailbox flag goes up when she reaches it
 const EPOCH=new Date(2026,6,6).getTime(); // town founding week
 // the data-center fight: surveyed, protested, and beaten (days since EPOCH)
@@ -239,6 +241,58 @@ function drawHunter(D){
 }
 function startKaiju(){ // surfaces WAY out east past the VFW and marches west on the open ridge — full profile the whole way (his first stage spot was hidden behind the Keating building, Austin barely saw him)
   kaiju={t:0,x:AX(320),tx:AX(235),up:0};
+}
+// ---------- the snow folk ----------
+function snowFolkOK(){ // out in daylight through the cold months (~Nov 10 - Mar 10), or any day there's real snow down — never in a warm spell, they'd melt
+  if(dl<0.3)return false;
+  if(snowCover>0.3)return true;
+  if(live){
+    if(wx&&wx.tempF>65)return false;
+    const mo=liveDate.getMonth(),dd=liveDate.getDate();
+    return mo===11||mo===0||mo===1||(mo===10&&dd>=10)||(mo===2&&dd<=10);
+  }
+  return seasonIdx===3||(seasonIdx===2&&seasonT>0.7);
+}
+const SCARF=['#c0392b','#2f7d3a','#e8c83c','#3a6ab0','#8a3a8c','#e07b2a','#2f7d3a','#c0392b'];
+function startHorde(kind){ // 'meet': two gangs come in from opposite ends and square off · 'split': one gang falls out with itself mid-march · 'march': just passing through
+  kind=kind||(Math.random()<0.4?'meet':(Math.random()<0.72?'split':'march'));
+  const n=Math.round((10+Math.random()*8)*Math.min(1.6,Math.sqrt(LX))),dir=Math.random()<0.5?1:-1;
+  const fx=W*(0.36+Math.random()*0.28),sp=6.5*Math.sqrt(LX),gap=15+Math.random()*6,half=Math.ceil(n/2),arr=[]; // gap: no-man's-land each side of the fight line
+  for(let i=0;i<n;i++){
+    const d=kind==='meet'?(i%2?-1:1):dir;
+    const rank=kind==='meet'?(i>>1):i;                     // 0 = the leader of its gang
+    const s={d,row:1+(Math.random()*3|0),dy:Math.random()*5-2.5,v:(8+Math.random()*3.5)*Math.sqrt(LX),
+      x:(d>0?-10:W+10)-d*rank*(8+Math.random()*7),hop:Math.random()*TAU,mv:false,face:d,
+      team:0,sx:null,cd:0.4+Math.random()*2.5,wind:0,fol:0,hit:0,head:0,cheer:0,wait:0,
+      hat:holiday&&Math.random()<0.55?3:[0,1,1,2,2,0][Math.random()*6|0],hc:SCARF[Math.random()*SCARF.length|0],
+      sc:SCARF[Math.random()*SCARF.length|0],arm:Math.random()*0.3};
+    if(kind==='meet'){s.team=d>0?0:1;s.sx=fx-d*(gap+rank*sp+Math.random()*3);s.fc=d;}
+    else if(kind==='split'){
+      if(i<half){s.team=1;s.sx=fx+dir*(gap+(half-1-i)*sp+Math.random()*3);s.fc=-dir;} // the leaders wheel round on the stragglers
+      else{s.team=0;s.sx=fx-dir*(gap+(i-half)*sp+Math.random()*3);s.fc=dir;}
+    }
+    arr.push(s);
+  }
+  arr.sort((a,b)=>a.dy-b.dy);                             // back-to-front within each row
+  horde={kind,arr,ph:kind==='march'?'out':'in',t:0,fd:18+Math.random()*14};
+  if(kind==='march')for(const s of arr)s.tx=s.d>0?W+16:-16;
+  else for(const s of arr)s.tx=s.sx;
+}
+function throwSnowball(s){
+  const foes=horde.arr.filter(o=>o.team!==s.team);
+  if(!foes.length)return;
+  const o=foes[Math.random()*foes.length|0],k1=ROWSC[s.row],k2=ROWSC[o.row];
+  const x0=s.x-s.face*2.2*k1,y0=ROWY[s.row]+s.dy-12*k1;  // from the cocked hand, up over the head
+  const hit=Math.random()<0.74,tx=hit?o.x:o.x+(Math.random()<0.5?-1:1)*(3+Math.random()*6);
+  const ty=hit?ROWY[o.row]+o.dy-6.5*k2:ROWY[o.row]+o.dy-0.5;
+  const T=clamp(Math.abs(tx-x0)/75,0.45,1.15),G=150;
+  sballs.push({x:x0,y:y0,vx:(tx-x0)/T,vy:(ty-y0-0.5*G*T*T)/T,G,t:0,T,o:hit?o:null});
+}
+function snowPuff(x,y,n,up){
+  for(let i=0;i<n;i++)sPuffs.push({x,y,vx:(Math.random()-0.5)*26,vy:-(up||8)-Math.random()*14,life:0.45+Math.random()*0.35,max:0.8});
+}
+function startMega(){ // pops up in the gap just east of the lot — leans on the Keating roof with one arm, waves with the other
+  mega={x:LOTX2+16,ph:'rise',t:0,k:0,dur:30+Math.random()*16,mound:0};
 }
 function startCowUfo(near){ // the mid-day abduction: pick a cow that's out grazing and send the saucer for her
   const avail=hillCows.filter(hc=>!hc.gone&&!hc.abd);
@@ -746,7 +800,7 @@ function onSeason(s){ // natural transitions in sim mode
 function synthSeason(s){ // rebuild plausible state for an arbitrary calendar moment
   bales=[];baleC=0;drops=[];flakes=[];leaves=[];splashes=[];weather=Math.min(weather,0.2);cloudCov=Math.min(cloudCov,0.3);wind=6;
   fire=null;duster=null;devil=null;tumbles=[];spray=[];rainbowT=0;
-  train=null;sale=null;balloon=null;jet=null;deer=null;rabbit=null;rabbitAt=-1;hawk=null;hawkAt=-1;pheasant=null;pheasantAt=-1;cattle=null;cattleAt=-1;ufo=null;cowUfo=null;cowUfoAt=-1;kaiju=null;kaijuAt=-1;hillCows.forEach(hc=>{hc.gone=false;hc.abd=false;hc.abdY=0;});snowman=null;fw=[];fwDemo=0;fogT=0;
+  train=null;sale=null;balloon=null;jet=null;deer=null;rabbit=null;rabbitAt=-1;hawk=null;hawkAt=-1;pheasant=null;pheasantAt=-1;cattle=null;cattleAt=-1;ufo=null;cowUfo=null;cowUfoAt=-1;kaiju=null;kaijuAt=-1;hillCows.forEach(hc=>{hc.gone=false;hc.abd=false;hc.abdY=0;});snowman=null;horde=null;sballs=[];sPuffs=[];mega=null;fw=[];fwDemo=0;fogT=0;
   satS=null;rocketS=null;meteors=[];showerT=0;auroraT=0;eclDemo=0;
   asteroid=null;crater=null;debris=[];combine=null;sprayer=null;unld=null;
   vfwLot=[];vfwDaily();
@@ -784,7 +838,7 @@ function jumpSeason(k){
   lastDay=Math.floor(day); lastSeason=seasonIdx;
   weather=0;rainyDay=false;flashT=0;cloudCov=0.3;wind=6;drops=[];flakes=[];leaves=[];birds=[];splashes=[];
   fire=null;art=null;duster=null;devil=null;tumbles=[];spray=[];rainbowT=0;
-  train=null;sale=null;balloon=null;jet=null;deer=null;rabbit=null;rabbitAt=-1;hawk=null;hawkAt=-1;pheasant=null;pheasantAt=-1;cattle=null;cattleAt=-1;ufo=null;cowUfo=null;cowUfoAt=-1;kaiju=null;kaijuAt=-1;hillCows.forEach(hc=>{hc.gone=false;hc.abd=false;hc.abdY=0;});snowman=null;fw=[];fwDemo=0;fogT=0;
+  train=null;sale=null;balloon=null;jet=null;deer=null;rabbit=null;rabbitAt=-1;hawk=null;hawkAt=-1;pheasant=null;pheasantAt=-1;cattle=null;cattleAt=-1;ufo=null;cowUfo=null;cowUfoAt=-1;kaiju=null;kaijuAt=-1;hillCows.forEach(hc=>{hc.gone=false;hc.abd=false;hc.abdY=0;});snowman=null;horde=null;sballs=[];sPuffs=[];mega=null;fw=[];fwDemo=0;fogT=0;
   satS=null;rocketS=null;meteors=[];showerT=0;auroraT=0;eclDemo=0;planStrange();
   asteroid=null;crater=null;debris=[];combine=null;sprayer=null;unld=null;
   vfwLot=[];vfwDaily();
@@ -824,6 +878,8 @@ addEventListener('keydown',e=>{
   else if(e.key==='U'){if(!cowUfo)startCowUfo();} // demo: the mid-day cattle abduction (needs a visible hill cow, so daytime only)
   else if(e.key==='G'){if(!kaiju)startKaiju();}   // demo: the giant prairie lizard eyes the town, helicopters object
   else if(e.key==='m'){if(!snowman)snowman={b:1};}
+  else if(e.key==='S'){if(!horde){sballs=[];startHorde(Math.random()<0.5?'meet':'split');}} // demo: a snowman horde marches in and a snowball fight breaks out
+  else if(e.key==='M'){if(!mega)startMega();}            // demo: the giant snowman by the store
   else if(e.key==='w')fwDemo=18;
   else if(e.key==='u'){if(!ufo)ufo={x:60+Math.random()*(W-120),y:-12,ph:0,t:0};}
   else if(e.key==='a')auroraT=25;
@@ -928,6 +984,9 @@ function update(dt){
     else melt=seasonIdx===3?0:(seasonIdx===0?0.03:0.06);
     snowCover=Math.max(0,snowCover-vdt*melt);
   }
+  // a white Christmas whatever the forecast says: Dec 20-26 always has snow down (it eases in like a real snowfall, and the family builds the yard snowman)
+  if(live&&liveDate.getMonth()===11&&liveDate.getDate()>=20&&liveDate.getDate()<=26&&snowCover<0.62)
+    snowCover=Math.min(0.62,snowCover+vdt*0.004);
 
   // --- random farm events ---
   const scorching=live?(wx&&wx.tempF>=97&&weather<0.2):(seasonIdx===1&&weather<0.12);
@@ -1150,6 +1209,63 @@ function update(dt){
   if(snowman){
     if(snowCover>0.35)snowman.b=Math.min(1,snowman.b+vdt*0.02);
     else{snowman.b-=vdt*0.01;if(snowman.b<=0)snowman=null;}
+  }
+  // the snow folk: a horde hops across the field, and some days it turns into a snowball fight
+  hordeT-=vdt;
+  if(hordeT<=0){
+    if(!horde&&snowFolkOK()&&!cattle&&!combine&&!tract.task&&!fire&&!duckHunt){startHorde();hordeT=1200+Math.random()*1500;}
+    else hordeT=60;                                         // not now — look again in a minute
+  }
+  if(horde){
+    const hd=horde;hd.t+=vdt;
+    if(hd.ph==='in'&&(hd.t>50||hd.arr.every(s=>Math.abs(s.tx-s.x)<0.6))){hd.ph='fight';hd.t=0;
+      for(const s of hd.arr){s.face=s.fc;s.tx=s.x;}}
+    if(hd.ph==='fight'&&hd.t>hd.fd&&!sballs.length){hd.ph='out';hd.t=0;
+      for(const s of hd.arr){s.cheer=1.4+Math.random()*0.8;s.wait=s.cheer+Math.random()*2.5;s.tx=s.d>0?W+16:-16;s.wind=0;}}
+    let gone=true;
+    for(const s of hd.arr){
+      s.hit=Math.max(0,s.hit-vdt);s.cheer=Math.max(0,s.cheer-vdt);s.fol=Math.max(0,s.fol-vdt);
+      if(s.head>0){s.head-=vdt;if(s.head<=0){s.head=0;snowPuff(s.x,ROWY[s.row]+s.dy-9*ROWSC[s.row],4,6);}} // head pops back on
+      if(s.wait>0)s.wait-=vdt;
+      s.mv=false;
+      if(s.wait<=0&&s.head<=0&&s.wind<=0){
+        const dx=s.tx-s.x;
+        if(Math.abs(dx)>0.5){const st=Math.min(Math.abs(dx),s.v*vdt);s.x+=Math.sign(dx)*st;s.hop+=st*0.62;s.face=Math.sign(dx);s.mv=true;}
+      }
+      if(hd.ph==='fight'&&s.head<=0){
+        if(s.wind>0){s.wind-=vdt;if(s.wind<=0){s.wind=0;s.fol=0.22;if(hd.t<hd.fd)throwSnowball(s);}}
+        else if(hd.t<hd.fd-0.6){s.cd-=vdt;if(s.cd<=0){s.wind=0.55;s.cd=1.1+Math.random()*2.4;}}
+      }
+      if(hd.ph!=='out'||(s.d>0?s.x<W+14:s.x>-14))gone=false;
+    }
+    if(gone||hd.t>240)horde=null;
+  }
+  sballs=sballs.filter(b=>{
+    b.t+=vdt;b.x+=b.vx*vdt;b.y+=b.vy*vdt;b.vy+=b.G*vdt;
+    if(b.t<b.T)return true;
+    if(b.o&&horde&&horde.arr.includes(b.o)){
+      b.o.hit=0.5;snowPuff(b.x,b.y,6,10);
+      if(b.o.head<=0&&b.o.wind<=0&&Math.random()<0.13){b.o.head=2.4;b.o.wind=0;}  // a clean shot knocks his head clean off — he plops it back on
+    }else snowPuff(b.x,b.y,4,6);                           // a miss splats in the stubble
+    return false;
+  });
+  sPuffs=sPuffs.filter(p=>{p.life-=vdt;p.vy+=70*vdt;p.x+=p.vx*vdt;p.y+=p.vy*vdt;return p.life>0;});
+  // the giant snowman: heaves up out of a drift beside Keating, waves a good while, sinks back into the snow
+  megaT-=vdt;
+  if(megaT<=0){
+    if(!mega&&snowFolkOK()&&!kaiju&&!cowUfo&&netFireK<0.02){startMega();megaT=2400+Math.random()*3000;}
+    else megaT=90;
+  }
+  if(mega){
+    const m=mega;m.t+=vdt;
+    if(m.ph==='rise'){m.mound=Math.min(1,m.t/0.9);m.k=clamp((m.t-0.7)/3,0,1);
+      if(vdt>0&&m.k<1&&Math.random()<0.5)snowPuff(m.x+(Math.random()-0.5)*24,HOR+6,1,12);
+      if(m.k>=1){m.ph='wave';m.t=0;}}
+    else if(m.ph==='wave'){if(m.t>m.dur){m.ph='sink';m.t=0;}}
+    else if(m.ph==='sink'){m.k=1-clamp(m.t/2.8,0,1);
+      if(vdt>0&&m.k>0&&Math.random()<0.4)snowPuff(m.x+(Math.random()-0.5)*24,HOR+6,1,10);
+      if(m.k<=0){m.ph='melt';m.t=0;}}
+    else{m.mound=1-clamp(m.t/5,0,1);if(m.mound<=0)mega=null;}
   }
   // the visitor (very rare, very late)
   if(!ufo&&dl<0.08&&vdt>0&&Math.random()<0.00003)ufo={x:60+Math.random()*(W-120),y:-12,ph:0,t:0};
@@ -2186,6 +2302,124 @@ function drawCow(c,y,sc){ // a grazing cow — Angus black or a white-faced Here
   g.fillRect(x-D*5*s,y-6*s,0.9*s,4*s+Math.sin(c.tail*3)*1.4*s);               // tail flick
 }
 
+function stick(x,y,ang,len,lw){ // a twig arm: shaft + two little fingers at the end. ang in canvas radians (0 = east, -PI/2 = up)
+  const ex=x+Math.cos(ang)*len,ey=y+Math.sin(ang)*len;
+  g.lineWidth=lw||1;g.beginPath();g.moveTo(x,y);g.lineTo(ex,ey);
+  const f=len*0.32;
+  g.moveTo(ex,ey);g.lineTo(ex+Math.cos(ang-0.7)*f,ey+Math.sin(ang-0.7)*f);
+  g.moveTo(ex,ey);g.lineTo(ex+Math.cos(ang+0.7)*f,ey+Math.sin(ang+0.7)*f);
+  g.stroke();
+  return[ex,ey];
+}
+// arm angle for a facing: e=elevation above horizontal, fwd=true points the way he faces
+const armA=(face,fwd,e)=>(face*(fwd?1:-1)>0)?-e:Math.PI+e;
+function drawSnowFolk(s,y,sc){ // one of the horde: three snowballs, coal eyes, a carrot, twig arms, a scarf and (mostly) a hat — hops instead of walks
+  const k=sc*0.95,x=s.x,by=y+s.dy,f=s.face;
+  const hop=s.mv?Math.abs(Math.sin(s.hop))*1.8*k:(s.cheer>0?Math.abs(Math.sin(s.cheer*9))*1.4*k:0);
+  const wob=s.hit>0?Math.sin(s.hit*42)*s.hit*2.6:0;
+  const wp=s.wind>0?1-s.wind/0.55:0, scoop=s.wind>0&&wp<0.45;   // wind-up: stoop for a handful, then cock the arm
+  const lean=scoop?1.1*k:0;
+  shadow(x,by,2.7*k*(1-Math.min(0.35,hop*0.09)));
+  const R1=2.7*k,R2=2.05*k,R3=1.6*k,yb=by-hop;
+  const c1=yb-R1,c2=c1-R1-R2*0.55+lean*0.4,c3=c2-R2-R3*0.6+lean*0.5;
+  const x2=x+f*lean*0.6+wob*0.5,x3=x+f*lean+wob;
+  const SN=S('#eef2f8',0.45),SD=S('#c4cede',0.45);
+  // twig arms (behind the middle ball)
+  g.strokeStyle=S('#5a4632',0.5);
+  const sh=c2-R2*0.15;
+  let fa,ba;                                                   // front (facing-side) and back arm angles
+  if(s.head>0){const fl=Math.sin(rt*18+x)*0.5;fa=armA(f,true,0.9+fl);ba=armA(f,false,0.9-fl);} // headless flailing
+  else if(s.cheer>0){fa=armA(f,true,1.15);ba=armA(f,false,1.15);}                         // both arms up — what a fight
+  else{
+    fa=scoop?armA(f,true,-0.95):armA(f,true,0.35+s.arm);
+    ba=s.wind>0&&!scoop?armA(f,false,1.25):(s.fol>0?armA(f,true,0.15):armA(f,false,0.4+s.arm*0.5));
+  }
+  stick(x2+f*R2*0.8,sh,fa,4.2*k);
+  const be=stick(x2-f*R2*0.8,sh,ba,4.2*k);
+  if(s.wind>0&&!scoop){g.fillStyle=S('#f6f9fd',0.4);g.fillRect(be[0]-0.7,be[1]-0.7,1.4,1.4);} // the snowball, cocked
+  // the three balls, each with a shaded underside
+  circle(x,c1,R1,SD);circle(x-0.25*R1,c1-0.3*R1,R1*0.84,SN);
+  circle(x2,c2,R2,SD);circle(x2-0.25*R2,c2-0.3*R2,R2*0.84,SN);
+  g.fillStyle=S('#22242a',0.45);g.fillRect(x2+f*0.3-0.35,c2-0.6,0.7,0.7);g.fillRect(x2+f*0.3-0.35,c2+0.7,0.7,0.7); // coal buttons
+  // scarf at the neck, its tail streaming downwind
+  const nk=c2-R2*0.85;
+  g.fillStyle=S(s.sc,0.5);g.fillRect(x2-R2*0.85,nk-0.5,R2*1.7,1);
+  const tw=Math.sin(rt*6+x)*0.4;g.fillRect(x2-f*R2*0.6,nk,0.9,1.6+tw);
+  // the head — or the head lying in the stubble beside him, if he just took one square
+  let hx=x3,hy=c3;
+  if(s.head>0){const back=s.head<0.35?s.head/0.35:1;              // last third of a second: he plops it back on
+    hx=lerp(x3,x-f*5*k,back);hy=lerp(c3,by-R3*0.9,back);}
+  circle(hx,hy,R3,SD);circle(hx-0.25*R3,hy-0.3*R3,R3*0.84,SN);
+  g.fillStyle=S('#22242a',0.45);
+  g.fillRect(hx+f*0.45*R3-0.35,hy-0.55*R3,0.7,0.7);g.fillRect(hx+f*0.45*R3-0.35-f*0.9*k,hy-0.55*R3,0.7,0.7); // coal eyes
+  g.fillStyle=S('#e8853c',0.45);g.fillRect(f>0?hx+R3*0.5:hx-R3*0.5-1.6*k,hy-0.1,1.6*k,0.8);   // carrot
+  const ht=hy-R3*0.8;
+  if(s.hat===1){g.fillStyle=S('#202228',0.5);g.fillRect(hx-R3*0.95,ht,R3*1.9,0.7);g.fillRect(hx-R3*0.6,ht-2*k,R3*1.2,2*k);  // stovepipe
+    g.fillStyle=S(s.hc,0.5);g.fillRect(hx-R3*0.6,ht-0.6*k,R3*1.2,0.6);}
+  else if(s.hat===2){g.fillStyle=S(s.hc,0.5);g.fillRect(hx-R3*0.85,ht-0.9*k,R3*1.7,1.3*k);g.fillRect(hx-0.4,ht-1.7*k,0.9,0.9);} // knit beanie + pom
+  else if(s.hat===3){g.fillStyle=S('#c8302c',0.5);                              // santa hat, December only
+    g.beginPath();g.moveTo(hx-R3*0.9,ht+0.3);g.lineTo(hx+R3*0.9,ht+0.3);g.lineTo(hx-f*R3*1.2,ht-2.4*k);g.closePath();g.fill();
+    g.fillStyle=S('#f4f4f4',0.5);g.fillRect(hx-R3*0.95,ht,R3*1.9,0.8);g.fillRect(hx-f*R3*1.2-0.5,ht-2.6*k,1,1);}
+}
+function drawMega(){ // the giant: twice the height of the store, Keating green & yellow scarf, leaning on the roof and waving
+  const m=mega,x=m.x,gy=HOR+6,k=m.k;
+  const ease=k<1?1-Math.pow(1-k,3):1;                              // eases up out of the drift
+  const sink=(1-ease)*52;
+  const bob=m.ph==='wave'?Math.sin(m.t*1.6)*0.4:0;
+  const R1=10,R2=7.6,R3=5.8;
+  const c1=gy-8.5+sink+bob,c2=c1-R1-R2*0.55,c3=c2-R2-R3*0.6;
+  const SN=S('#eef2f8',0.45),SD=S('#c4cede',0.45),SH=S('#dce3ee',0.45);
+  if(k>0.02){
+    shadow(x,gy+0.5,13*ease);
+    g.save();g.beginPath();g.rect(x-60,0,120,gy+1);g.clip();           // only what's above the drift shows
+    // arms first, behind the middle ball
+    g.strokeStyle=S('#5a4632',0.5);
+    const sh=c2-2,hk=Math.pow(ease,4);
+    { // the store-side arm reaches over and hooks the corner of the KEATING sign — hand stays off the lettering
+      const ax=x-R2*0.8,hx0=lerp(ax-9,DX+DW+1.5,hk),hy0=lerp(sh-7,HOR-24.8+sink,hk);
+      g.lineWidth=1.6;g.beginPath();g.moveTo(ax,sh);g.lineTo(hx0,hy0);
+      g.moveTo(hx0,hy0);g.lineTo(hx0-3.2,hy0-0.2);g.moveTo(hx0,hy0);g.lineTo(hx0-1.4,hy0-2.9);g.stroke();
+    }
+    const wv=m.ph==='wave'?((m.t%2.8)<1.9?Math.sin(m.t*9):0):0;      // waves in bursts, rests between
+    stick(x+R2*0.8,sh,-1.15+wv*0.38,14,1.6);
+    // body
+    circle(x,c1,R1,SD);circle(x-2.2,c1-2.6,R1*0.85,SN);
+    circle(x,c2,R2,SD);circle(x-1.6,c2-2,R2*0.85,SN);
+    g.fillStyle=S('#22242a',0.45);for(let i=0;i<3;i++)g.fillRect(x-0.6,c2-3.4+i*3,1.3,1.3); // coal buttons
+    // the scarf: Keating green with yellow stripes, one tail streaming in the wind
+    const nk=c2-R2*0.8,wf=clamp(wind/30,0.2,1);
+    g.fillStyle=S('#2f7d3a',0.5);g.fillRect(x-R2*0.9,nk-1,R2*1.8,2.4);
+    g.fillStyle=S('#e8c83c',0.5);for(let i=0;i<4;i++)g.fillRect(x-R2*0.9+1+i*3.4,nk-1,1,2.4);
+    const flap=Math.sin(rt*(3+wind*0.1))*1.2*wf;
+    g.fillStyle=S('#2f7d3a',0.5);g.beginPath();g.moveTo(x+2,nk+1);g.lineTo(x+4,nk+1);g.lineTo(x+5+3*wf,nk+8+flap);g.lineTo(x+2.5+3*wf,nk+8.5+flap);g.closePath();g.fill();
+    g.fillStyle=S('#e8c83c',0.5);g.fillRect(x+4+3*wf*0.9,nk+7.4+flap,2,1);
+    // head
+    const hx=x+(m.ph==='wave'?Math.sin(m.t*1.6)*0.6:0);
+    circle(hx,c3,R3,SD);circle(hx-1.2,c3-1.5,R3*0.85,SN);
+    circle(hx-2.6,c3-2.4,1.1,SH);                                     // a catchlight on the crown
+    const blink=(m.t%4.3)<0.14;
+    g.fillStyle=S('#22242a',0.45);
+    if(blink){g.fillRect(hx-2.6,c3-1.4,1.6,0.6);g.fillRect(hx+1,c3-1.4,1.6,0.6);}
+    else{g.fillRect(hx-2.4,c3-2,1.3,1.3);g.fillRect(hx+1.2,c3-2,1.3,1.3);}
+    for(let i=0;i<5;i++){const a=0.45+i*0.56;g.fillRect(hx+Math.cos(a)*2.9-0.45,c3+0.6+Math.sin(a)*1.6,0.9,0.9);} // coal smile
+    g.fillStyle=S('#e8853c',0.45);g.beginPath();g.moveTo(hx,c3-0.4);g.lineTo(hx,c3+0.9);g.lineTo(hx+4.2,c3+0.5);g.closePath();g.fill(); // carrot
+    const ht=c3-R3*0.82;
+    if(holiday){g.fillStyle=S('#c8302c',0.5);                        // santa hat in December
+      g.beginPath();g.moveTo(hx-R3,ht+1);g.lineTo(hx+R3,ht+1);g.lineTo(hx+R3+2.5,ht-6.5);g.closePath();g.fill();
+      g.fillStyle=S('#f4f4f4',0.5);g.fillRect(hx-R3-0.4,ht,R3*2+0.8,1.8);circle(hx+R3+2.5,ht-6.7,1.3,S('#f4f4f4',0.5));}
+    else{g.fillStyle=S('#202228',0.5);g.fillRect(hx-R3-1.4,ht,R3*2+2.8,1.2);g.fillRect(hx-R3*0.72,ht-6.5,R3*1.44,6.6); // stovepipe hat
+      g.fillStyle=S('#2f7d3a',0.5);g.fillRect(hx-R3*0.72,ht-1.8,R3*1.44,1.2);
+      g.fillStyle=S('#e8c83c',0.5);g.fillRect(hx-R3*0.72,ht-1.8,R3*1.44,0.4);}
+    g.restore();
+  }
+  // the drift he comes up out of
+  if(m.mound>0.02){
+    const mw=15*m.mound,mh=3.2*m.mound;
+    g.fillStyle=S('#c4cede',0.45);g.beginPath();g.ellipse(x,gy+0.6,mw,mh,0,Math.PI,0);g.fill();
+    g.fillStyle=S('#eef2f8',0.45);g.beginPath();g.ellipse(x-1.5,gy+0.2,mw*0.82,mh*0.7,0,Math.PI,0);g.fill();
+  }
+}
+
 function drawCombine(x,y,s,dir,rider){
   shadow(x,y,13*s);
   g.save();
@@ -2310,6 +2544,9 @@ function drawCar(x,y,col,dir){
   g.fillStyle=S('#22242c');
   g.beginPath();g.arc(-3,-1.6,1.8,0,TAU);g.fill();
   g.beginPath();g.arc(3.2,-1.6,1.8,0,TAU);g.fill();
+  g.fillStyle=S('#4a4e58');                    // hub caps, same idiom as drawBus's wheel treatment
+  g.beginPath();g.arc(-3,-1.6,0.65,0,TAU);g.fill();
+  g.beginPath();g.arc(3.2,-1.6,0.65,0,TAU);g.fill();
   P(-5.5,-4.8,11,3,col);
   P(-2.5,-7,5.6,2.4,col);
   g.fillStyle=shA(mixA(C(col),SNOW,0.22),0.5);g.fillRect(-2.5,-7,5.6,1); // roof highlight, matches drawPickup's cab treatment
@@ -2499,6 +2736,9 @@ function drawTruckSm(x,y,col,dir){
   g.fillStyle=S('#22242c');
   g.beginPath();g.arc(-3,-2,2.1,0,TAU);g.fill();
   g.beginPath();g.arc(4,-2,2.1,0,TAU);g.fill();
+  g.fillStyle=S('#4a4e58');                    // hub caps, same idiom as drawBus/drawCar's wheel treatment
+  g.beginPath();g.arc(-3,-2,0.7,0,TAU);g.fill();
+  g.beginPath();g.arc(4,-2,0.7,0,TAU);g.fill();
   P(-6,-7,13,4,col);
   P(1,-10,5,3,col);
   g.fillStyle=shA(mixA(C(col),NIGHT,0.25),0.5);g.fillRect(-6,-4,13,1);
@@ -3169,6 +3409,8 @@ function draw(){
     }
     g.fillStyle=shA(C('#3a4048'),0.6);
     g.fillRect(train.x-6,HOR-6,12,5);
+    g.fillStyle=shA(mixA(C('#3a4048'),SNOW,0.22),0.5);g.fillRect(train.x-6,HOR-6,12,1); // engine roof highlight, same idiom as the cars above
+    g.fillStyle=shA(mixA(C('#3a4048'),NIGHT,0.3),0.72);g.fillRect(train.x-6,HOR-2,12,1); // engine undercarriage shade
     g.fillStyle=shA(C('#e8c83c'),0.5);
     g.fillRect(train.x-6,HOR-3,12,1);
     if(dl<0.3){g.fillStyle='rgba(255,230,150,0.6)';g.fillRect(train.x+train.dir*6,HOR-4,1,2);
@@ -3548,7 +3790,8 @@ function draw(){
       const pp=sale.t<3.5?sale.t/3.5:Math.max(0,(7-sale.t)/3.5);
       const px3=lerp(sale.x-6,DX+58,Math.min(1,pp));
       shadow(px3+0.5,HOR+6,1.9);
-      g.fillStyle=S('#3a3540',0.55);g.fillRect(px3-1,HOR+3,1,3);g.fillRect(px3+1,HOR+3,1,3);
+      const lsw3=Math.sin(px3*0.9)*0.4; // leg scissor keyed to ground covered, same idiom as drawWalker/drawHunter
+      g.fillStyle=S('#3a3540',0.55);g.fillRect(px3-1+lsw3,HOR+3,1,3);g.fillRect(px3+1-lsw3,HOR+3,1,3);
       g.fillStyle=S('#5a6a8c',0.58);g.fillRect(px3-1,HOR,3,3);
       g.fillStyle=S('#c9a985',0.52);g.fillRect(px3-0.5,HOR-2,2,2);
       g.fillStyle=S('#3a3d45',0.55);g.fillRect(px3-0.6,HOR-2.8,2.2,1);
@@ -3726,6 +3969,7 @@ function draw(){
     g.fillRect(DX+8,HOR+6,7,1);g.fillRect(DX+40,HOR+3,5,1);
     g.fillRect(VFWX-8,HOR+4,6,1);g.fillRect(BARNX+20,HOR+2,5,1);
   }
+  if(mega)drawMega();                                            // the giant snowman by the store — before the road traffic, so cars pass in front of him
   // customers out front
   for(const v of visitors){
     if(v.st==='done')continue;
@@ -3841,6 +4085,7 @@ function draw(){
       if(snowCover>0.3&&!b.ry){g.fillStyle=css(SNOW);g.fillRect(b.x-2,y-5.2*sc-1,4,1);}
     }
     if(cattle)for(const c of cattle.arr)if(c.row===r)drawCow(c,y,sc); // herd layered by row; a working machine (below) draws over them, but they spook off before one arrives
+    if(horde)for(const s7 of horde.arr)if(s7.row===r)drawSnowFolk(s7,y,sc); // the snow folk, layered by row like the herd (sorted back-to-front at spawn)
     if(tract.task&&tract.task.row===r){
       const tm=tract.task.mode;
       if(tm==='plant')drawPlanter(tract.x,tract.y,tract.s,tract.dir);
@@ -3859,6 +4104,10 @@ function draw(){
     if(sprayer&&sprayer.row===r)drawSprayer(sprayer.x,ROWY[r],0.5+ROWSC[r]*0.55,sprayer.dir);
     if(r===0)drawHens(c8=>c8.y>=ROWY[0]); // hens strolling row 0 stand among its stalks — over row-0 crops, still behind rows 1-3
   }
+
+  // snowballs in flight + the puffs where they land — over every row, they're up in the air
+  if(sballs.length){g.fillStyle=S('#f6f9fd',0.4);for(const b of sballs)g.fillRect(b.x-0.8,b.y-0.8,1.6,1.6);}
+  for(const p of sPuffs){g.fillStyle=`rgba(240,245,252,${(0.9*p.life/p.max).toFixed(3)})`;g.fillRect(p.x-0.5,p.y-0.5,1,1);}
 
   // grain on the go & targeted spray
   if(unld&&unld.ph==='pour'&&combine){
