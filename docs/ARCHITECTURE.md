@@ -75,8 +75,9 @@ Representative rolls (see `onNewDay()`):
 ### 3a-bis. Timer events — the snow folk ❄️
 Not daily rolls: these run on their own countdowns (`hordeT`, `megaT`) so people actually
 see them during the cold months. Gate = `snowFolkOK()`: daylight (`dl>=0.3`) **and** either
-real snow down (`snowCover>0.3`) or the snowman season (live: ~Nov 10 → Mar 10, skipped if
-Liberal is above 65°F; sim: winter + late autumn).
+real snow down (`snowCover>0.3`) or the snowman season (live: ~Nov 10 → Mar 10, and only
+when Liberal is **45°F or colder** — 65°F let them fight on 60° afternoons, which looked
+wrong (Austin, 2026-11-19); sim: winter + late autumn).
 
 | Event | First after boot | Then every | What happens |
 |---|---|---|---|
@@ -105,6 +106,12 @@ Current `acresExit()` order:
 3. Otherwise → immediate exit.
 
 They're mutually exclusive: cow **or** bang, never both.
+
+**Skipping a send-off (2026-11-19):** the Windows host passes what woke it —
+`__acresExit('move' | 'click' | 'key')`. While a send-off plays (`sendOff`), mouse drift
+is ignored but a **second click or any key exits at once**. And if an abduction or asteroid
+is already on screen on its own (daily roll / demo key), input exits immediately — before
+this, `acresExit` returned early in both cases and nothing closed the saver until it ended.
 
 > **The asymmetry that started all this:** the asteroid *only* exists on the exit roll,
 > while kaiju and the abduction were *only* daily rolls. Same ~2% number, but the exit

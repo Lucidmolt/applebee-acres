@@ -48,7 +48,7 @@ namespace ApplebeeAcres
 
     internal static class Program
     {
-        public const string Version = "1.4-snow";
+        public const string Version = "1.5";
 
         [STAThread]
         private static void Main(string[] args)
@@ -160,16 +160,16 @@ namespace ApplebeeAcres
         private const string ExitScript = @"
 (function () {
   var ox = null, oy = null;
-  function bail() {
-    try { if (window.__acresExit) { window.__acresExit(); return; } } catch (e) {}
+  function bail(kind) {
+    try { if (window.__acresExit) { window.__acresExit(kind); return; } } catch (e) {}
     try { window.chrome.webview.postMessage('exit'); } catch (e) {}
   }
   addEventListener('mousemove', function (e) {
     if (ox === null) { ox = e.screenX; oy = e.screenY; return; }
-    if (Math.abs(e.screenX - ox) > 5 || Math.abs(e.screenY - oy) > 5) bail();
+    if (Math.abs(e.screenX - ox) > 5 || Math.abs(e.screenY - oy) > 5) bail('move');
   });
-  addEventListener('mousedown', bail);
-  addEventListener('keydown', bail);
+  addEventListener('mousedown', function () { bail('click'); });
+  addEventListener('keydown', function () { bail('key'); });
 })();";
 
         public SaverForm(Rectangle bounds, string dataDir, string siteDir, bool span)

@@ -29,6 +29,8 @@ let rafFn = null;
 global.requestAnimationFrame = (fn) => { rafFn = fn; };
 global.setInterval = () => 0;                                  // don't keep process alive
 global.fetch = () => Promise.reject(new Error('offline'));     // prove weather fails soft
+const posted = [];                                             // what the page tells the Windows host (just 'exit')
+global.window = { chrome: { webview: { postMessage: (m) => posted.push(m) } } };
 
 // --- run ---
 eval(src);
@@ -100,4 +102,18 @@ key('k'); step(120);                         // network restored: fire dies down
 key('l'); step(200);                         // back to live
 console.log('back live:', hudEl.textContent);
 key('h'); key('-'); step(500);
+// screensaver exit: an asteroid already on screen on its own never holds the user up
+key('q'); step(5);
+let n0 = posted.length; window.__acresExit('move');
+if (posted.length !== n0 + 1) throw new Error('exit was held up by an on-screen asteroid');
+step(400);                                   // let it land and clear
+// an exit send-off: mouse drift lets it play, a second click (or a key) closes the saver at once
+const rnd = Math.random; Math.random = () => 0.01;      // force the send-off roll (saucer by day, asteroid by night)
+n0 = posted.length; window.__acresExit('click'); Math.random = rnd;
+if (posted.length !== n0) throw new Error('send-off should not exit immediately');
+window.__acresExit('move'); step(10);
+if (posted.length !== n0) throw new Error('mouse drift should not skip the send-off');
+window.__acresExit('click');
+if (posted.length !== n0 + 1) throw new Error('second click should skip the send-off');
+console.log('exit send-off skip ran');
 setTimeout(() => { console.log('OK'); process.exit(0); }, 50); // let rejected fetch settle
